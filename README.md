@@ -1,2 +1,64 @@
-# media-scm
-미디어 SCM · 홈쇼핑 방송, PPL 계약·배분 및 구글시트 연동
+# 미디어 SCM
+
+홈쇼핑 방송 입력, PPL 계약·배분, 방송결과, 팀장 검토와 Google Sheets 연동.
+
+## 배포 대상
+
+- GitHub: `miheeshin110-a11y/media-scm` (private)
+- Vercel: `miheeshin110-a11ys-projects/media-scm`
+- 현재 코드는 이전 준비본입니다. 운영 데이터 이전과 외부 인증 설정을 완료한 뒤 실무 테스트를 진행합니다.
+
+## 실행
+
+Node.js 22 이상에서 `npm ci`, `npm run dev`를 실행합니다. 로컬 주소는 http://localhost:3100 입니다.
+`.env.example`을 `.env.local`로 복사하고 각 환경의 값을 설정합니다. 비밀키 파일은 저장소에 넣지 않습니다.
+
+## Google 로그인
+
+Google Cloud에서 웹 애플리케이션용 OAuth 클라이언트를 생성합니다. 로그인 앱은 OpenID, 이메일, 프로필만 요청합니다.
+운영 승인 리디렉션 URI는 `https://<확정된 운영 도메인>/api/auth/callback/google`입니다.
+로컬은 `http://localhost:3100/api/auth/callback/google`을 사용합니다.
+
+- `NEXTAUTH_URL`: 해당 환경의 확정된 URL
+- `NEXTAUTH_SECRET`: 충분히 긴 임의의 서버 비밀값
+- `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`: 로그인 OAuth 클라이언트
+- `SCM_REVIEWER_EMAILS`: 관리자 이메일 JSON 배열
+- `SCM_INPUTTER_EMAILS`: 입력 담당자 이메일 JSON 배열
+
+인증된 Google 이메일만 허용 목록과 비교합니다. 등록되지 않은 계정은 접근할 수 없습니다.
+이전 서비스의 `oai-authenticated-*` 요청 헤더는 새 서버에서 인증에 사용하지 않습니다.
+관리자는 검토와 계약·정산을 처리하며 입력 담당자는 방송 입력과 검토 요청을 처리합니다.
+
+## 저장소
+
+Neon PostgreSQL을 사용합니다. Vercel에서 SCM 전용 Neon 저장소를 연결하고 `DATABASE_URL`을 Production 비밀 환경 변수로 설정합니다.
+Preview는 별도 테스트 DB를 연결하기 전까지 운영 DB에 접근하지 않습니다.
+
+환경 변수를 로드한 상태에서 `npm run db:migrate`로 테이블을 만듭니다.
+Vercel Production 배포에서는 빌드 전에 같은 마이그레이션을 자동 실행합니다. Preview 빌드는 실행하지 않습니다.
+마이그레이션 이력과 체크섬을 검증하며 실패하면 전체 트랜잭션을 롤백합니다.
+기존 테이블이 있는데 이력이 없다면 자동 덮어쓰지 않고 중단합니다.
+방송 버전, 변경 이력, 전송 대기는 동일 쓰기 트랜잭션으로 저장됩니다.
+방송과 계약의 동시 수정은 공통 트랜잭션 잠금과 버전 비교로 보호합니다.
+시트 전송 중에는 저장 트랜잭션을 유지하지 않습니다.
+
+## Google Sheets
+
+`GOOGLE_SERVICE_ACCOUNT_EMAIL`, `GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY`는 서버 환경 변수에만 등록합니다.
+로그인 OAuth 비밀값과 별개입니다. 기존 테스트 시트는 `lib/sheet-mapping.ts`에 지정되어 있습니다.
+기존 서비스와 새 서비스가 같은 행을 동시에 수정하지 않도록 데이터 이전 전에는 새 서비스에 시트 키를 등록하지 않습니다.
+
+## 전환 순서
+
+1. 별도 저장소 및 OAuth 설정 완료
+2. 기존 서비스 입력 중단 시점 확정 후 원본 DB 백업
+3. 방송 row_id, version 및 계약·배분·변경 이력·전송 상태를 보존하여 빈 대상 DB로 이전
+4. 시트 행 번호와 비용배분 합계 대조
+5. 기존 서비스 쓰기 중단 확인 후 새 서비스에 시트 키 등록
+6. 관리자/실무자 로그인, 부분 저장, 팀장 검토, 계약 배분, 시트 반영 검증
+
+`SCM_SEED_RECORDS`는 기본적으로 꺼져 있습니다. 이전에 사용한 데모 샘플을 운영 데이터처럼 자동 등록하지 않습니다.
+
+## 검증
+
+`npm test`와 `npm run build`를 실행합니다. 업무 계산·배분, Google 계정 허용 목록, PostgreSQL 트랜잭션을 검증합니다. 저장 테스트는 PGlite의 실제 PostgreSQL 엔진에서 운영 SQL을 실행합니다. 원격 Neon 연결 검증은 별도 진행합니다.
