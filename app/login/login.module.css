@@ -1,0 +1,66 @@
+.page {
+  min-height: 100svh;
+  display: grid;
+  place-items: center;
+  padding: 32px 20px;
+  background: #f2f4f8;
+  color: #182335;
+  line-height: 1.6;
+}
+.card {
+  width: 100%;
+  max-width: 472px;
+  padding: 36px;
+  border: 1px solid #e5eaf1;
+  border-radius: 26px;
+  background: #fff;
+  box-shadow: 0 12px 40px #1b37590a;
+}
+.brand { display: flex; align-items: center; gap: 12px; }
+.brandIcon { display: grid; place-items: center; width: 48px; height: 48px; border-radius: 16px; background: #0072de; color: #fff; }
+.brandName { margin: 0; font-size: 20px; font-weight: 750; letter-spacing: -.6px; }
+.brandDescription { margin: 0; font-size: 13px; color: #647184; }
+.intro { margin: 36px 0 26px; }
+.eyebrow { margin: 0 0 8px; color: #0066cb; font-size: 13px; font-weight: 650; }
+.title { margin: 0; font-size: 26px; line-height: 1.4; font-weight: 750; letter-spacing: -.9px; word-break: keep-all; }
+.description { margin: 12px 0 0; font-size: 15px; color: #586579; word-break: keep-all; }
+.googleButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 58px;
+  padding: 10px 16px;
+  border: 1px solid transparent;
+  border-radius: 18px;
+  background: #006bd6;
+  color: #fff;
+  font-size: 16px;
+  font-weight: 650;
+  cursor: pointer;
+  transition: background .15s, box-shadow .15s;
+}
+.googleButton:hover:not(:disabled) { background: #005bbb; box-shadow: 0 4px 12px #006bd629; }
+.googleButton:active:not(:disabled) { background: #004f9f; }
+.googleButton:focus-visible { outline: 3px solid #006bd6; outline-offset: 4px; }
+.googleButton:disabled { background: #e8edf4; color: #536175; cursor: not-allowed; }
+.googleIcon { display: grid; place-items: center; flex-shrink: 0; width: 32px; height: 32px; border-radius: 9px; background: #fff; }
+.hint { margin: 12px 0 0; font-size: 13px; color: #647184; text-align: center; word-break: keep-all; }
+.footer { display: flex; align-items: flex-start; gap: 8px; margin-top: 28px; padding-top: 22px; border-top: 1px solid #edf0f4; color: #657185; font-size: 13px; }
+.footer svg { flex-shrink: 0; margin-top: 3px; }
+.footer p { margin: 0; }
+.footer strong { font-weight: 600; color: #47566b; }
+.notice, .error { margin: 0 0 16px; padding: 12px 14px; border-radius: 12px; font-size: 14px; }
+.notice { color: #485972; background: #f0f4f9; }
+.error { color: #9a2929; background: #fff0f0; }
+.googleButton + .error { margin-top: 12px; }
+.spinner { animation: spin 1s linear infinite; flex-shrink: 0; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .spinner { animation: none; } .googleButton { transition: none; } }
+@media (max-width: 480px) {
+  .page { padding: 20px 16px; }
+  .card { padding: 28px 24px; }
+  .title { font-size: 24px; }
+  .googleButton { gap: 8px; padding-inline: 12px; font-size: 15px; }
+}
