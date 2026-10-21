@@ -1,3 +1,4 @@
+import {broadcastClockIssues,usesActualClock} from '@/lib/broadcast-clock';
 import {authenticated} from '@/lib/runtime';
 import {runtime,identity,checkWrite,readable,editable,reviewer} from '@/lib/runtime';
 import {validateWorkflow,computedItem} from '@/lib/workflow';
@@ -33,6 +34,8 @@ async function handlePOST(request:Request){
     const original=JSON.stringify({record,baseVersion});
     const previous=await db.prepare('SELECT payload FROM scm_records WHERE id=?').bind(record.id).first<{payload:string}>();
     const old:Item|undefined=previous?JSON.parse(previous.payload):seedRecords.find(x=>x.id===record.id);
+    const clockErrors=broadcastClockIssues(record,old);if(clockErrors.length)return json({error:clockErrors.join(' ')},400);
+    if(usesActualClock(old))record={...record,dateConvention:'actual'};
     if(!reviewer(request)){
       if(record.workflow==='검토 완료'&&old?.workflow!=='검토 완료')return json({error:'팀장만 검토를 완료할 수 있습니다.'},403);
       if(record.workflow==='보완 요청'&&old?.workflow!=='보완 요청')return json({error:'팀장만 보완을 요청할 수 있습니다.'},403);

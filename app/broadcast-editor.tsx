@@ -1,4 +1,5 @@
 'use client';
+import {usesActualClock} from '@/lib/broadcast-clock';
 import {skuOptions} from '@/lib/sku-options';
 import {actualDateTime,type Item,type Composition} from '@/lib/scm-model';
 import {compositions,costPlan,supplyPrice,estimated,sides,sideName,missingForReview,displayChannel} from '@/lib/workflow';
@@ -7,16 +8,17 @@ import {Field,NumberInput,Value,Section,show} from './entry-fields';
 type Props={form:Item;onChange:(item:Item)=>void;items:Item[]};
 export function BroadcastEditor({form,onChange,items}:Props){
  const put=(k:keyof Item,v:unknown)=>onChange({...form,[k]:v});
+ const actual=usesActualClock(items.find(x=>x.id===form.id));
  const channels=[...new Set(['SK','홈앤','현대','현대+','SSG','CJ','K','NS','롯데','롯데+','공영',...items.map(x=>x.channel)].filter(Boolean))];
  return <><Section title="방송 기본정보" note="아는 내용부터 입력하고 부분 저장하세요. 홈쇼핑 미편성 상태에서도 등록할 수 있습니다."/><div className="result-grid">
  <Field label="표준 아이템"><select className="form-control" value={form.item} onChange={e=>onChange({...form,item:e.target.value,shortItem:e.target.value})}><option value="">선택</option>{[...new Set(['파라다이스','아세로라','프리바이오틱스','알파시클로덱스트린',...items.map(x=>x.item),form.item].filter(Boolean))].map(x=><option key={x}>{x}</option>)}</select></Field>
  <Field label="담당자"><select className="form-control" value={form.owner} onChange={e=>put('owner',e.target.value)}><option value="">선택</option>{[...new Set(['조정묵','김미정','김진희','임상민',...items.map(x=>x.owner),form.owner].filter(Boolean))].map(x=><option key={x}>{x}</option>)}</select></Field>
  <Field label="홈쇼핑 채널"><select className="form-control" value={form.channel} onChange={e=>onChange({...form,channel:e.target.value,status:e.target.value?form.status:''})}><option value="">편성예정(미편성)</option>{channels.map(x=><option key={x}>{x}</option>)}</select></Field>
  <Field label="방송 상태"><select className="form-control" value={form.status} onChange={e=>put('status',e.target.value)}><option value="">아직 확정 전</option><option disabled={!form.channel}>편성확정</option><option>취소</option></select></Field>
- <Field label="편성 기준일"><input className="form-control" type="date" value={form.date} onChange={e=>put('date',e.target.value)}/></Field>
- <Field label="편성 표기시간" hint="24:30·25:00 입력 가능. 미정이면 빈칸으로 저장"><input className="form-control" value={form.time} onChange={e=>put('time',e.target.value)} placeholder="예: 24:30"/></Field>
- <Value label="실제 방송일시 · 편성시간 환산" value={actualDateTime(form.date,form.time)||'편성일·시간 미정'}/>
- <Field label="캘린더 표시월" hint="미입력 시 편성일의 월에 표시. 비용 귀속월과 별도"><input className="form-control" type="month" value={form.calendarMonth||''} onChange={e=>put('calendarMonth',e.target.value)}/></Field>
+ <Field label={actual?"실제 방송일":"편성 기준일 · 기존 표기"}><input className="form-control" type="date" value={form.date} onChange={e=>put('date',e.target.value)}/></Field>
+ <Field label={actual?"실제 방송시간":"편성 표기시간 · 기존 표기"} hint={actual?"00:00~23:59 입력 · 미정이면 빈칸으로 저장":"기존 24:30·25:00 표기 유지"}><input className="form-control" type={actual?"time":"text"} value={form.time} onChange={e=>put('time',e.target.value)} placeholder="예: 24:30"/></Field>
+ <Value label={actual?"캘린더에 표시할 실제 방송일시":"실제 방송일시 · 편성시간 환산"} value={actualDateTime(form.date,form.time)||'편성일·시간 미정'}/>
+ {actual?<Value label="캘린더 표시월 · 실제 날짜 기준" value={form.date.slice(0,7)||'날짜 미정'}/>:<Field label="캘린더 표시월" hint="미입력 시 편성일의 월에 표시. 비용 귀속월과 별도"><input className="form-control" type="month" value={form.calendarMonth||''} onChange={e=>put('calendarMonth',e.target.value)}/></Field>}
  <Field label="원래 방송 · 변경/보상편성 연결"><select className="form-control" value={form.replacesId||''} onChange={e=>put('replacesId',e.target.value)}><option value="">해당 없음</option>{items.filter(x=>x.id!==form.id&&x.status==='취소').map(x=><option key={x.id} value={x.id}>{x.date} {x.time} {x.channel} {x.item}</option>)}</select></Field>
  <Field label="급편성"><input type="checkbox" checked={form.urgent} onChange={e=>put('urgent',e.target.checked)}/></Field>
  {form.status==='취소'&&<Field label="취소 사유 · 필수" hint="예: 결방, 편성일 변경. 기존 기록과 비용 연결은 보존됩니다."><textarea className="form-control" value={form.cancelReason||''} onChange={e=>put('cancelReason',e.target.value)}/></Field>}

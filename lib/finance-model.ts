@@ -1,6 +1,9 @@
+import {registrationIssues,resolveAiring} from './ppl-registration.ts';
+import type {AgencyTerms} from './ppl-registration.ts';
 import type {PplLink} from './scm-model.ts';
 import type {Item} from './scm-model.ts';
 import {actualDateTime} from './scm-model.ts';
+import {pplAirings} from './ppl-airings.ts';
 import type {PplAiring} from './ppl-airings.ts';
 import {allocatedPpl} from './ppl-master.ts';
 import {computedItem} from './workflow.ts';
@@ -15,7 +18,7 @@ export function proportionalTaxes(total:Money,nets:string[]):string[]{
  const base=BigInt(total.net),tax=BigInt(total.tax);let used=BigInt(0),previous=BigInt(0);
  return nets.map(n=>{used+=BigInt(n);const next=base===BigInt(0)?BigInt(0):used*tax/base;const part=next-previous;previous=next;return String(part)});
 }
-export type Contract=Money&{invoiceApprovals?:string[];airings?:PplAiring[];program?:string;pplOrigin?:{broadcastId:string;link:PplLink};id:string;code:string;name:string;party:string;businessNo:string;partyId?:string;channel:string;approvalNo:string;date:string;notes:string};
+export type Contract=Money&AgencyTerms&{invoiceApprovals?:string[];airings?:PplAiring[];program?:string;pplOrigin?:{broadcastId:string;link:PplLink};id:string;code:string;name:string;party:string;businessNo:string;partyId?:string;channel:string;approvalNo:string;date:string;notes:string};
 export type Allocation=Money&{airing?:PplAiring;id:string;code:string;contractId:string;broadcastId:string;month:string;active:boolean};
 export type InvoiceLink=Money&{contractId:string};
 export type Invoice=Money&{id:string;code:string;party:string;businessNo:string;partyId?:string;date:string;approvalNo:string;notes:string;active:boolean;links:InvoiceLink[];linkTaxMode?:'auto'};
@@ -36,7 +39,7 @@ function allocationAiring(d:Record<string,unknown>,old?:Allocation):{airing?:Ppl
  if(!a||typeof a!=='object'||['date','time','kind'].some(k=>typeof a[k]!=='string')||(a.originalDate!==undefined&&typeof a.originalDate!=='string'))throw new FinanceError('PPL 방송일정을 확인해 주세요.');
  const date=String(a.date).trim(),time=String(a.time).trim(),kind=String(a.kind).trim(),originalDate=String(a.originalDate||'').trim();
  if((date&&!actualDateTime(date,'00:00'))||(time&&!actualDateTime(date||'2026-01-01',time))||(kind&&!['본방','재방','스페셜'].includes(kind))||(originalDate&&!actualDateTime(originalDate,'00:00'))||(date&&originalDate&&originalDate>date))throw new FinanceError('PPL 방송일·시간·송출구분과 원본 본방일을 확인해 주세요.');
- return {airing:{date,time,kind,originalDate}};
+ return {airing:{...(typeof a.id==='string'?{id:a.id}:{}),date,time,kind,originalDate}};
 }
 export function applyFinanceAction(current:Finance,action:FinanceAction,broadcastIds:Set<string>,now=new Date().toISOString(),uuid=()=>crypto.randomUUID()):Finance{
   const f:Finance=structuredClone(current),d=action.data;if(!d||typeof d!=='object')throw new FinanceError('입력 내용을 확인해 주세요.');
@@ -75,9 +78,23 @@ export function applyFinanceAction(current:Finance,action:FinanceAction,broadcas
         if(['date','time','kind'].some(k=>typeof a[k]!=='string')||(a.originalDate!==undefined&&typeof a.originalDate!=='string'))throw new FinanceError('PPL 방송일정을 확인해 주세요.');
         const dateValue=String(a.date).trim(),time=String(a.time).trim(),kind=String(a.kind).trim(),originalDate=String(a.originalDate||'').trim();
         if((dateValue&&!actualDateTime(dateValue,'00:00'))||(time&&!actualDateTime(dateValue||'2026-01-01',time))||(kind&&!['본방','재방','스페셜'].includes(kind))||(originalDate&&!actualDateTime(originalDate,'00:00'))||(dateValue&&originalDate&&originalDate>dateValue))throw new FinanceError('PPL 방송일·시간·송출구분과 원본 본방일을 확인해 주세요.');
-        return {date:dateValue,time,kind,originalDate};
+        return {...(typeof a.id==='string'?{id:a.id}:{}),date:dateValue,time,kind,originalDate};
       }).filter(a=>a.date||a.time||a.kind||a.originalDate);
     }else if(old?.airings)row.airings=old.airings;
+    if(d.tradeType!==undefined){
+      if(!['direct','agency'].includes(String(d.tradeType)))throw new FinanceError('거래 방식을 선택해 주세요.');
+      row.tradeType=d.tradeType as 'direct'|'agency';row.agencyRate=row.tradeType==='direct'?'0':str(d,'agencyRate',true);
+      if(row.tradeType==='agency'&&(!/^\d{1,3}(\.\d{1,2})?$/.test(row.agencyRate)||Number(row.agencyRate)>100))throw new FinanceError('대행료율을 0~100% 범위, 소수 둘째 자리까지 입력하세요.');
+    }else if(old?.tradeType){row.tradeType=old.tradeType;row.agencyRate=old.agencyRate;}
+    if(row.airings?.some(a=>a.id)){
+      if(row.airings.some(a=>!a.id))throw new FinanceError('모든 송출일정의 ID를 확인해 주세요.');
+      const errors=registrationIssues(row,old?pplAirings(old,[],f.allocations):[]);if(errors.length)throw new FinanceError(errors.join(' '));
+      for(const allocation of f.allocations.filter(a=>a.active&&a.contractId===row.id&&a.airing)){
+        const resolved=resolveAiring(row,allocation.airing);
+        if(!resolved)throw new FinanceError('홈쇼핑 방송에 연결된 송출일정은 삭제할 수 없습니다. 연결·배분에서 다른 일정을 선택하거나 연결을 해제하세요.');
+        allocation.airing={...resolved};
+      }
+    }else if(old?.airings?.some(a=>a.id))throw new FinanceError('등록된 송출일정을 모두 삭제할 수 없습니다.');
     row.name=contractName(row);if(old)f.contracts[f.contracts.indexOf(old)]=row;else f.contracts.push(row);
   }else if(action.kind==='allocations'){
     const contractId=str(d,'contractId',true),c=f.contracts.find(x=>x.id===contractId);
@@ -115,6 +132,14 @@ export function applyFinanceAction(current:Finance,action:FinanceAction,broadcas
   }else if(action.kind==='voidAllocation'||action.kind==='voidInvoice'){
     const row=(action.kind==='voidAllocation'?f.allocations:f.invoices).find(x=>x.id===id);if(!row||!row.active)throw new FinanceError('이미 해제됐거나 없는 내역입니다.');row.active=false;
   }else throw new FinanceError('지원하지 않는 저장 요청입니다.');
+  if(action.kind==='allocation'||action.kind==='allocations'){
+    const c=f.contracts.find(c=>c.id===d.contractId);
+    if(c?.airings?.some(a=>a.id))for(const allocation of f.allocations.filter(a=>a.active&&a.contractId===c.id)){
+      const resolved=resolveAiring(c,allocation.airing);
+      if(!resolved)throw new FinanceError('PPL 등록 화면에 저장된 송출일정을 선택해 주세요.');
+      allocation.airing={...resolved};
+    }
+  }
   const changedContracts=action.kind==='contract'?[f.contracts.find(c=>c.id===id)?.id||f.contracts[f.contracts.length-1]?.id]:action.kind==='allocations'?[String(d.contractId)]:action.kind==='allocation'?[String(d.contractId),current.allocations.find(a=>a.id===id)?.contractId]:action.kind==='voidAllocation'?[current.allocations.find(a=>a.id===id)?.contractId]:[];
   for(const contractId of new Set(changedContracts)){const c=f.contracts.find(x=>x.id===contractId);if(!c)continue;const rows=f.allocations.filter(a=>a.active&&a.contractId===c.id),taxes=proportionalTaxes(c,rows.map(a=>a.net));rows.forEach((a,i)=>{a.tax=taxes[i];a.taxMode='auto'});}
   for(const inv of f.invoices.filter(x=>x.active))for(const link of inv.links){const c=f.contracts.find(x=>x.id===link.contractId);if(!c||!c.businessNo||c.businessNo!==inv.businessNo)throw new FinanceError('세금계산서와 계약 거래처의 사업자등록번호가 같아야 합니다.');}

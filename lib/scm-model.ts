@@ -12,13 +12,13 @@ export type BroadcastResult = {
   /** Legacy values are read for compatibility, never added together. */
   status?: '임시'|'입력완료'; manufacturingCost?: string; originalProfit?: string; lookerProfit?: string;
 };
-export type PplLink = {id:string; pplId:string; program:string; kind:string; date:string; time:string; channel:string; agencyId?:string; originalDate?:string; originalPplId?:string; contractRef?:string};
+export type PplLink = {id:string; pplId:string; program:string; kind:string; date:string; time:string; channel:string; agencyId?:string; originalDate?:string; originalPplId?:string; contractRef?:string;airingId?:string};
 export type ReviewState='작성 중'|'검토 요청'|'보완 요청'|'검토 완료';
 export type Composition={enabled:boolean;sku:string;units:string;unitCost:string;costDate:string;sellingPrice:string;commission:string;vatBasis:'포함'|'별도';plannedQuantity:string;conversionRate:string};
 export type Gift={id:string;side:'single'|'double'|'both';item:string;units:string;unitCost:string};
 export type CostPlan={adCost:string;guestCost:string;administrationCost:string;otherCost:string;shippingRate:string;shippingBasis:''|'sets'|'manual';shippingCount:string;quantityRounding:''|'floor'|'round';moneyRounding:''|'floor'|'round';pplProcessingMonth:string};
 export type Item = {
-  id:string; date:string; time:string; channel:string; item:string; shortItem:string; owner:string;
+  id:string; date:string; time:string; dateConvention?:'actual'; channel:string; item:string; shortItem:string; owner:string;
   status:string; urgent:boolean; ppl:string; program:string; pplKind:string; price:string; target:string;
   rate:string; contractId:string; contractAmount:string; allocation:string; attribution:string;
   sync:'완료'|'대기'; hsTarget?:string; businessProfitTarget?:string; plannedQuantity?:string;

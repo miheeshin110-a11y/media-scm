@@ -1,12 +1,13 @@
 import type {Contract,Finance} from './finance-model.ts';
 import type {Item,PplLink} from './scm-model.ts';
+import {linkAiring} from './ppl-registration.ts';
 import {pplAirings} from './ppl-airings.ts';
 import {linksOf} from './workflow.ts';
 
 export function masterProgram(c:Contract,items:Item[]=[]){return c.program||c.pplOrigin?.link.program||items.flatMap(linksOf).find(l=>l.contractRef===c.id&&l.program)?.program||'';}
 export function masterLink(c:Contract,broadcast:Item,items:Item[]=[]):PplLink{
  const dates=pplAirings(c,items);const airing=dates.length===1?dates[0]:{date:'',time:'',kind:''};
- return {id:'allocation-'+c.id+'-'+broadcast.id,pplId:'',contractRef:c.id,channel:c.channel,program:masterProgram(c),agencyId:'',...airing};
+ return {id:'allocation-'+c.id+'-'+broadcast.id,pplId:'',contractRef:c.id,channel:c.channel,program:masterProgram(c),agencyId:'',...linkAiring(airing)};
 }
 // Allocations are the authoritative relationship. Keep entered airing details intact.
 export function allocatedPpl(item:Item,f:Finance):Item{
@@ -24,7 +25,7 @@ export function allocatedPpl(item:Item,f:Finance):Item{
  for(const c of contracts){
   const a=f.allocations.find(a=>a.active&&a.broadcastId===item.id&&a.contractId===c.id);
   const i=links.findIndex(l=>l.contractRef===c.id);
-  if(a?.airing&&i>=0)links[i]={...links[i],...a.airing,originalDate:a.airing.originalDate||'',originalPplId:''};
+  if(a?.airing&&i>=0)links[i]={...links[i],...linkAiring(a.airing),originalPplId:''};
  }
  if(!contracts.length&&links.length===(item.pplLinks?.length||0))return item;
  return {...item,...(contracts.length?{ppl:'있음'}:{}),pplLinks:links,program:links.map(l=>l.program).filter(Boolean).join(' / '),pplKind:links[0]?.kind||''};

@@ -1,13 +1,14 @@
 import type {Contract,Allocation} from './finance-model.ts';
 import type {Item} from './scm-model.ts';
-export type PplAiring={date:string;time:string;kind:string;originalDate?:string};
+export type PplAiring={id?:string;date:string;time:string;kind:string;originalDate?:string};
 export function pplAirings(c:Contract,items:Item[]=[],allocations:Allocation[]=[]):PplAiring[]{
- const rows:PplAiring[]=[...allocations.filter(a=>a.active&&a.contractId===c.id&&a.airing).map(a=>a.airing!),...(c.airings||[]),...(c.pplOrigin?[c.pplOrigin.link]:[]),...items.filter(i=>i.ppl==='있음').flatMap(i=>(i.pplLinks||[]).filter(l=>l.contractRef===c.id))];
+ const fromLink=(l:NonNullable<Item['pplLinks']>[number]):PplAiring=>({date:l.date,time:l.time,kind:l.kind,originalDate:l.originalDate,...(l.airingId?{id:l.airingId}:{})});
+ const rows:PplAiring[]=[...(c.airings||[]),...allocations.filter(a=>a.active&&a.contractId===c.id&&a.airing).map(a=>a.airing!),...(c.pplOrigin?[fromLink(c.pplOrigin.link)]:[]),...items.filter(i=>i.ppl==='있음').flatMap(i=>(i.pplLinks||[]).filter(l=>l.contractRef===c.id).map(fromLink))];
  const result:PplAiring[]=[];
  for(const row of rows){
   if(!row.date&&!row.time&&!row.kind)continue;
   const key=(a:PplAiring)=>[a.date,a.time,a.kind].join('|');
-  if(!result.some(a=>key(a)===key(row)))result.push({date:row.date,time:row.time,kind:row.kind,originalDate:row.originalDate});
+  if(!result.some(a=>(a.id&&row.id&&a.id===row.id)||key(a)===key(row)))result.push({...row});
  }
  return result.sort((a,b)=>(a.date||'9999').localeCompare(b.date||'9999')||a.time.localeCompare(b.time)||a.kind.localeCompare(b.kind));
 }
