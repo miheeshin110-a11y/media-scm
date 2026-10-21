@@ -707,3 +707,7 @@ button { transition:background 180ms cubic-bezier(.22,.25,0,1),color 180ms cubic
 }
 @media(max-width:999px) { .review-workspace { min-height:65vh; }.review-scroll { max-height:65vh; } }
 @media(max-width:699px) { .review-summary-grid,.review-decision { grid-template-columns:1fr; }.review-toolbar { align-items:flex-start; flex-wrap:wrap; }.review-detail-heading strong { order:3; width:100%; } }
+
+.finance-save-feedback:not(:empty) { padding:10px 14px; margin-top:12px; background:var(--surface-alt); border:1px solid var(--line); border-radius:12px; font-size:var(--caption); line-height:1.6; }
+.finance-save-feedback ul { margin:4px 0 0; padding-left:20px; }
+.finance-save-feedback:focus { outline:2px solid var(--accent); outline-offset:2px; }
