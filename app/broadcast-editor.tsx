@@ -1,5 +1,6 @@
 'use client';
 import {usesActualClock} from '@/lib/broadcast-clock';
+import {BreakEvenPanel} from './break-even-panel';
 import {skuOptions} from '@/lib/sku-options';
 import {actualDateTime,type Item,type Composition} from '@/lib/scm-model';
 import {compositions,costPlan,supplyPrice,estimated,sides,sideName,missingForReview,displayChannel} from '@/lib/workflow';
@@ -46,6 +47,6 @@ export function CostEditor({form,onChange}:{form:Item;onChange:(item:Item)=>void
  <Field label="배송비 산정 기준"><select className="form-control" value={p.shippingBasis} onChange={e=>onChange({...form,costPlan:{...p,shippingBasis:e.target.value as typeof p.shippingBasis}})}><option value="">기준 확인 후 선택</option><option value="sets">예상출고 1세트 = 배송 1건</option><option value="manual">배송 건수 별도 입력</option></select></Field>
  <Field label="계산 금액 원 단위 처리"><select className="form-control" value={p.moneyRounding} onChange={e=>onChange({...form,costPlan:{...p,moneyRounding:e.target.value as typeof p.moneyRounding}})}><option value="">기준 확인 후 선택</option><option value="floor">항목별 원 미만 버림</option><option value="round">항목별 원 단위 반올림</option></select></Field>
  <Field label="PPL 비용처리월" hint="방송별 비용 귀속월과 별도로 기록"><input className="form-control" type="month" value={p.pplProcessingMonth} onChange={e=>onChange({...form,costPlan:{...p,pplProcessingMonth:e.target.value}})}/></Field>
- </div><p className="result-note">배송비·상품원가·사은품비는 방송결과의 예상 출고수량으로 계산됩니다.</p></>;
+ </div><p className="result-note">배송비·상품원가·사은품비는 방송결과의 예상 출고수량으로 계산됩니다.</p><BreakEvenPanel item={form}/></>;
 }
 export function ReviewEditor({form}:{form:Item}){const missing=missingForReview(form);return <><Section title="입력 내용을 팀장에게 검토 요청" note="누락 항목이 있어도 요청할 수 있습니다. ‘부분 저장’만 하면 검토 대기 목록에는 올라가지 않습니다."/><div className="review-guidance"><b>담당자 입력 → 팀장 검토함 → 보완 요청 또는 검토 완료</b><span>아래 ‘팀장 검토 요청’을 누르면 현재 내용이 저장되고, 왼쪽 ‘팀장 검토함’의 검토 대기 목록에 표시됩니다. 팀장은 해당 방송의 입력 요약과 누락 항목을 확인합니다.</span></div><div className="result-grid"><Value label="방송" value={`${form.date||'날짜 미정'} ${form.time} · ${displayChannel(form.channel)} · ${form.item}`}/><Value label="검토 상태" value={form.workflow||'작성 중'}/></div>{form.workflow==='검토 요청'&&<p className="review-receipt" role="status">검토 요청 상태입니다. 팀장은 왼쪽 ‘팀장 검토함 → 검토 대기 → 내용 보기’에서 확인할 수 있습니다.</p>}{form.reviewNote&&<div className="review-guidance"><b>팀장 검토·보완 메모</b><span>{form.reviewNote}</span></div>}{missing.length?<details className="review-missing-details"><summary>아직 입력하지 않은 항목 {missing.length}개 보기 · 검토 요청 가능</summary><ul>{missing.map(x=><li key={x}>{x}</li>)}</ul></details>:<p className="result-note">기본 검토항목이 입력되었습니다.</p>}<p className="result-note">보완 요청을 받으면 메모에 따라 수정한 뒤 다시 ‘팀장 검토 요청’을 누르세요. 요청은 검토함에 표시되며 메일·슬랙 알림은 발송되지 않습니다.</p></>}
