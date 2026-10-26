@@ -346,6 +346,9 @@ button { transition:background 180ms cubic-bezier(.22,.25,0,1),color 180ms cubic
 
 .party-picker { display:grid;gap:8px; }
 .party-register { margin-top:12px; }
+.master-register { grid-column:1/-1; padding:16px; border:1px solid var(--border); border-radius:12px; background:var(--selected); }
+.master-register h4 { margin:0 0 8px; font-size:var(--body); }
+.master-register [role="alert"] { color:#a1251b; margin:10px 0; }
 
 .vat-field small,.allocation-tax { display:block;font-size:var(--caption);color:var(--secondary);margin-top:5px; }
 .vat-toggle { display:flex;gap:8px;align-items:center;font-size:var(--caption);margin:10px 0; }

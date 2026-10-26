@@ -1,7 +1,8 @@
 'use client';
 import {useEffect,useRef,useState} from 'react';
 import {amount,defaultVat,contractName,type Finance,type FinanceAction,type Contract,type Money} from '@/lib/finance-model';
-import {partyChoices,partyId,displayBusinessNo,contractChannels,dionBusinessNo,type Party} from '@/lib/counterparties';
+import {contractChannels,type Party} from '@/lib/counterparties';
+import {PartyPicker,ProgramPicker} from './master-pickers';
 import {NumberInput} from './entry-fields';
 import {registrationIssues,resolveAiring} from '@/lib/ppl-registration';
 import {AgencyFields,PplScheduleFields} from './ppl-registration-fields';
@@ -9,7 +10,6 @@ import {PplAiringSelector} from './ppl-airing-selector';
 import {airingSummary,pplAirings,matchesPpl} from '@/lib/ppl-airings';
 import type {PplAiring} from '@/lib/ppl-airings';
 import {masterProgram} from '@/lib/ppl-master';
-import {linksOf} from '@/lib/workflow';
 import {workspaceContract} from '@/lib/ppl-contracts';
 import type {Item} from '@/lib/scm-model';
 import {TaxWorkspace} from './tax-workspace';
@@ -44,14 +44,6 @@ export function FinanceWorkspace({finance,items,save,busy,reload,preferredContra
  {tab==='allocation'&&c&&<AllocationEditor key={c.id+':'+finance.version} finance={finance} items={items} save={save} busy={busy} contractId={c.id}/>}
  </fieldset>}</div></section></div></>;
 }
-function PartyPicker({finance,value,onChange}:{finance:Finance;value:string;onChange:(p:Party)=>void}){
- const [query,setQuery]=useState('');const choices=partyChoices(finance);const selected=choices.find(p=>p.businessNo===value.replace(/[-\s]/g,''));
- return <><Field label="계약 거래처 선택"><div className="party-picker"><input className="form-control" aria-label="거래처 검색" placeholder="회사명 · 사업자번호 검색" value={query} onChange={e=>setQuery(e.target.value)}/><select className="form-control" value={selected?.id||''} onChange={e=>{const p=choices.find(x=>x.id===e.target.value);if(p)onChange(p)}}><option value="" disabled>거래처를 선택하세요</option>{choices.filter(p=>p.id===selected?.id||(p.name+p.businessNo).replace(/[-\s]/g,'').includes(query.replace(/[-\s]/g,''))).map(p=><option value={p.id} key={p.id}>{p.name}{p.businessNo===dionBusinessNo?' · 인하우스 경유사':''}</option>)}</select></div></Field><Field label="사업자등록번호 · 자동 입력"><input className="form-control" readOnly value={displayBusinessNo(selected?.businessNo||'')} placeholder="거래처 선택 시 표시"/></Field></>;
-}
-function RegisterParty({save,onRegistered}:{save:FinanceSave;onRegistered:(p:Party)=>void}){
- const [open,setOpen]=useState(false),[name,setName]=useState(''),[businessNo,setBusinessNo]=useState('');
- return <div className="party-register"><button className="text-button" onClick={()=>setOpen(x=>!x)} aria-expanded={open}>{open?'거래처 등록 닫기':'+ 목록에 없는 거래처 등록'}</button>{open&&<><p className="result-note">세금계산서의 정식 상호와 사업자번호로 한 번만 등록하세요.</p><div className="result-grid"><Input label="정식 상호" value={name} onChange={setName}/><Input label="사업자등록번호" value={businessNo} onChange={setBusinessNo}/></div><div className="finance-actions"><button className="secondary-button" onClick={async()=>{const n=businessNo.replace(/[-\s]/g,'');if(await save({kind:'party',data:{name,businessNo}})){onRegistered({id:partyId(n),name:name.trim(),businessNo:n,source:'사용자 등록'});setOpen(false);setName('');setBusinessNo('')}}}>거래처 등록 후 선택</button></div></>}</div>;
-}
 function contractDraft(c:Contract,items:Item[],finance:Finance):Contract{
  const rows=pplAirings(c,items,finance.allocations);
  const used=new Set(rows.map(a=>a.id).filter(Boolean));
@@ -61,17 +53,15 @@ function contractDraft(c:Contract,items:Item[],finance:Finance):Contract{
 export function ContractEditor({finance,contract,save,onSaved,saveLabel="PPL 저장 후 홈쇼핑 연결",items=[]}:{finance:Finance;contract?:Contract;save:FinanceSave;onSaved:(id:string,contract?:Contract)=>void;saveLabel?:string;items?:Item[]}){
  const snapshot=contract?JSON.stringify(contractDraft(contract,items,finance)):'';
  const [d,setD]=useState<Contract>(()=>snapshot?JSON.parse(snapshot):freshContract());
- const [section,setSection]=useState('info'),[newProgram,setNewProgram]=useState(''),[attempted,setAttempted]=useState(false);
+ const [section,setSection]=useState('info'),[attempted,setAttempted]=useState(false);
  const feedback=useRef<HTMLDivElement>(null);const put=(k:string,v:string)=>setD(x=>({...x,[k]:v}));
  const previous=contract?pplAirings(contract,items,finance.allocations):[];
  const issues=[...contractFormIssues(d),...registrationIssues(d,previous)];
  useEffect(()=>{setD(snapshot?JSON.parse(snapshot):freshContract());setAttempted(false)},[snapshot]);
  const choose=(p:Party)=>setD(x=>({...x,partyId:p.id,party:p.name,businessNo:p.businessNo}));
- const programs=[...new Set([...(finance.programs||[]).filter(p=>p.channel===d.channel).map(p=>p.name),...items.flatMap(linksOf).filter(l=>l.channel===d.channel).map(l=>l.program),...finance.contracts.filter(c=>c.channel===d.channel).map(c=>masterProgram(c,items)),d.program||''].filter(Boolean))];
  const submit=async()=>{setAttempted(true);if(issues.length){feedback.current?.focus();return;}const result=await save({kind:'contract',data:d});if(result){const saved=result.contracts.find(c=>d.id?c.id===d.id:!finance.contracts.some(old=>old.id===c.id));if(saved)onSaved(saved.id,saved)}};
  return <><div className="finance-tabs" aria-label="PPL 등록 순서">{[['info','1. 프로그램·총금액'],['schedule','2. 본방·재방 일정']].map(([key,label])=><button key={key} aria-pressed={section===key} className={section===key?'active':''} onClick={()=>setSection(key)}>{label}</button>)}</div>
- {section==='info'?<><div className="form-section-heading"><h3>프로그램·총금액 등록</h3><p>대행료를 포함한 전체 공급가액을 입력한 뒤 송출일정을 등록하세요.</p></div><div className="result-grid"><div className="contract-name-preview"><span>계약명 · 자동 생성</span><strong>{contractName(d)}</strong></div><PartyPicker finance={finance} value={d.businessNo} onChange={choose}/><Field label="방송 채널 · 종편사"><select className="form-control" value={d.channel} onChange={e=>setD(x=>({...x,channel:e.target.value,program:''}))}><option value="">채널 선택</option>{[...new Set([...contractChannels,...(contract?.channel?[contract.channel]:[])])].map(c=><option key={c}>{c}</option>)}</select></Field><Field label="PPL 프로그램명"><select className="form-control" disabled={!d.channel} value={d.program||''} onChange={e=>put('program',e.target.value)}><option value="">프로그램 선택</option>{programs.map(p=><option key={p}>{p}</option>)}</select></Field><MoneyFields value={d} onChange={put}/></div><AgencyFields value={d} onChange={setD}/>
- <details className="ppl-extra" open={!!d.channel&&!programs.length}><summary>+ 목록에 없는 PPL 프로그램 등록</summary><Input label="새 프로그램명" value={newProgram} onChange={setNewProgram}/><button className="secondary-button" disabled={!d.channel||!newProgram.trim()} onClick={async()=>{if(await save({kind:'program',data:{channel:d.channel,name:newProgram}})){put('program',newProgram.trim());setNewProgram('')}}}>프로그램 등록 후 선택</button></details><RegisterParty save={save} onRegistered={choose}/>
+ {section==='info'?<><div className="form-section-heading"><h3>프로그램·총금액 등록</h3><p>대행료를 포함한 전체 공급가액을 입력한 뒤 송출일정을 등록하세요.</p></div><div className="result-grid"><div className="contract-name-preview"><span>계약명 · 자동 생성</span><strong>{contractName(d)}</strong></div><PartyPicker finance={finance} value={d.businessNo} onChange={choose} save={save}/><Field label="방송 채널 · 종편사"><select className="form-control" value={d.channel} onChange={e=>setD(x=>({...x,channel:e.target.value,program:''}))}><option value="">채널 선택</option>{[...new Set([...contractChannels,...(contract?.channel?[contract.channel]:[])])].map(c=><option key={c}>{c}</option>)}</select></Field><ProgramPicker key={d.channel} finance={finance} items={items} channel={d.channel} value={d.program||''} onChange={name=>put('program',name)} save={save}/><MoneyFields value={d} onChange={put}/></div><AgencyFields value={d} onChange={setD}/>
  <details className="ppl-extra"><summary>기안번호·계약 체결일·메모 · 선택 입력</summary><div className="result-grid"><Input label="기안번호" value={d.approvalNo} onChange={v=>put('approvalNo',v)}/><Input label="계약 체결일 · 송출일과 별도" type="date" value={d.date} onChange={v=>put('date',v)}/><Input label="메모" value={d.notes} onChange={v=>put('notes',v)}/></div></details>
  <div className="finance-actions"><button className="primary-button" onClick={()=>setSection('schedule')}>다음: 본방·재방 일정 입력</button><span>다음 단계에서 일정을 입력하고 함께 저장합니다.</span></div></>:<><PplScheduleFields contract={d} allocations={finance.allocations} onChange={airings=>setD(x=>({...x,airings}))}/><div className="finance-actions"><button className="secondary-button" onClick={()=>setSection('info')}>이전: 프로그램·총금액</button><button className="primary-button" onClick={submit}>{saveLabel}</button></div></>}
  <div className="finance-save-feedback" ref={feedback} tabIndex={-1} role={attempted&&issues.length?'alert':'status'}>{attempted&&issues.length?<><strong>저장 전 확인할 항목</strong><ul>{issues.map(issue=><li key={issue}>{issue}</li>)}</ul></>:<span>프로그램·총금액과 송출일정을 저장한 뒤 홈쇼핑 방송에 배분합니다.</span>}</div></>;
