@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {splitPplCost,scheduleIssues} from '../lib/ppl-registration.ts';
+import {splitPplCost,splitPplGrossCost,scheduleIssues} from '../lib/ppl-registration.ts';
 import {applyFinanceAction,emptyFinance,contractTotals,withFinance} from '../lib/finance-model.ts';
 import {masterLink} from '../lib/ppl-master.ts';
 import {pplAirings} from '../lib/ppl-airings.ts';
@@ -82,8 +82,24 @@ test('Google export exposes included agency amounts without adding them to the c
  const tables=financeSheetRows(create());const table=tables.find(t=>t.range.startsWith("'SCM_계약'!"));
  assert.ok(table);
  const headers=table.values[0],row=table.values[1];
- assert.equal(row[headers.indexOf('포함 대행료')],1000000);
- assert.equal(row[headers.indexOf('대행료 제외 금액')],9000000);
+ assert.equal(row[headers.indexOf('포함 대행료 · 부가세 제외')],1000000);
+ assert.equal(row[headers.indexOf('대행료 제외 금액 · 부가세 제외')],9000000);
+ assert.equal(row[headers.indexOf('밴더사 수수료 · 부가세 포함')],1100000);
+ assert.equal(row[headers.indexOf('수수료 제외 PPL 금액 · 부가세 포함')],9900000);
+});
+test('vendor fee uses the VAT-inclusive total and retains the net cost split',()=>{
+ const c={net:'30000000',tax:'3000000',tradeType:'agency',agencyRate:'10'};
+ assert.deepEqual(splitPplGrossCost(c),{fee:3300000,media:29700000,total:33000000,feeNet:3000000,feeTax:300000,mediaNet:27000000,mediaTax:2700000});
+ assert.equal(splitPplGrossCost({...c,tradeType:'direct'}).fee,0);
+ assert.equal(splitPplGrossCost({...c,tax:'0'}).fee,3000000);
+ const adjusted=splitPplGrossCost({...c,tax:'2500000'});
+ assert.equal(adjusted.fee,3250000);
+ assert.equal(adjusted.feeNet+adjusted.feeTax,adjusted.fee);
+ assert.equal(adjusted.mediaNet+adjusted.mediaTax,adjusted.media);
+ const rounded=splitPplGrossCost({...c,net:'999',tax:'99',agencyRate:'5.25'});
+ assert.equal(rounded.fee,57);assert.equal(rounded.fee+rounded.media,1098);
+ assert.equal(splitPplGrossCost({...c,net:''}),null);
+ assert.equal(splitPplGrossCost({...c,tax:''}),null);
 });
 test('PostgreSQL schedule edits atomically queue linked broadcasts and preserve allocated amounts',async()=>{
  const db=await store();try{

@@ -12,6 +12,15 @@ export function splitPplCost(c:{net:string}&AgencyTerms){
  const fee=Number(BigInt(c.net)*basis/BigInt(10000));
  return {fee,media:Number(c.net)-fee,total:Number(c.net)};
 }
+// Display the fee as a share of the entered VAT-inclusive contract total.
+// Keep the supply-price split available for broadcast costs and accounting.
+export function splitPplGrossCost(c:{net:string;tax:string}&AgencyTerms){
+ if(!/^\d+$/.test(c.tax)||!Number.isSafeInteger(Number(c.tax)))return null;
+ const net=splitPplCost(c),total=Number(c.net)+Number(c.tax);
+ if(!net||!Number.isSafeInteger(total))return null;
+ const gross=splitPplCost({...c,net:String(total)});
+ return gross?{...gross,feeNet:net.fee,feeTax:gross.fee-net.fee,mediaNet:net.media,mediaTax:gross.media-net.media}:null;
+}
 export const airingKey=(a:PplAiring)=>[a.date,a.time,a.kind].join('|');
 export const sameAiring=(a:PplAiring,b:PplAiring)=>!!a.id&&!!b.id?a.id===b.id:airingKey(a)===airingKey(b);
 export const linkAiring=(a:PplAiring)=>({date:a.date,time:a.time,kind:a.kind,originalDate:a.originalDate||'',airingId:a.id||''});

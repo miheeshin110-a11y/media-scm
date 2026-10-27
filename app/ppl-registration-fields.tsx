@@ -1,13 +1,14 @@
 'use client';
-import type {Contract,Allocation} from '@/lib/finance-model';
-import {splitPplCost,sameAiring} from '@/lib/ppl-registration';
+import {defaultVat,type Contract,type Allocation} from '@/lib/finance-model';
+import {splitPplGrossCost,sameAiring} from '@/lib/ppl-registration';
 import type {PplAiring} from '@/lib/ppl-airings';
 import {airingLabel} from '@/lib/ppl-airings';
-import {Field,NumberInput,Value} from './entry-fields';
+import {Field,NumberInput} from './entry-fields';
 const won=(n:number|undefined)=>n===undefined?'미입력':n.toLocaleString('ko-KR')+'원';
 export function AgencyFields({value:c,onChange}:{value:Contract;onChange:(c:Contract)=>void}){
- const parts=splitPplCost(c);
- return <><div className="result-grid"><Field label="거래 방식"><select className="form-control" value={c.tradeType||''} onChange={e=>onChange({...c,tradeType:e.target.value as Contract['tradeType'],agencyRate:e.target.value==='direct'?'0':''})}><option value="">선택</option><option value="direct">직거래 · 밴더사 수수료 없음</option><option value="agency">밴더사 경유 · 총금액에 수수료 포함</option></select></Field>{c.tradeType==='agency'&&<Field label="밴더사 수수료율(대행료) · 총금액에 포함 (%)"><NumberInput value={c.agencyRate||''} onChange={agencyRate=>onChange({...c,agencyRate})}/></Field>}<Value label="포함된 밴더사 수수료(대행료)" value={won(parts?.fee)}/><Value label="수수료 제외 PPL 금액" value={won(parts?.media)}/></div><p className="result-note">총금액 1,000만원 · 밴더사 수수료 10%라면 수수료 100만원과 PPL 금액 900만원입니다. 방송에 배분할 총금액은 1,000만원입니다. 원 미만은 버립니다.</p></>;
+ const manual=c.taxMode==='manual'||(!c.taxMode&&c.tax!==''&&c.tax!==defaultVat(c.net));
+ const parts=splitPplGrossCost({...c,tax:manual?c.tax:defaultVat(c.net)});
+ return <section className="contract-section agency-section" aria-label="밴더사 수수료"><h3>3. 밴더사 수수료</h3><div className="contract-identity-grid"><Field label="거래 방식"><select className="form-control" value={c.tradeType||''} onChange={e=>onChange({...c,tradeType:e.target.value as Contract['tradeType'],agencyRate:e.target.value==='direct'?'0':''})}><option value="">선택</option><option value="direct">직거래 · 수수료 없음</option><option value="agency">밴더사 경유 · 수수료 포함</option></select></Field><Field label="수수료율 · 부가세 포함 총금액 기준 (%)">{c.tradeType==='agency'?<NumberInput value={c.agencyRate||''} onChange={agencyRate=>onChange({...c,agencyRate})}/>:<input className="form-control numeric-input" readOnly value={c.tradeType==='direct'?'0':''} placeholder="거래 방식 선택"/>}</Field></div><div className="agency-amounts"><div className="result-value"><span>밴더사 수수료 · 부가세 포함</span><strong>{won(parts?.fee)}</strong>{parts&&<small>공급가액 {won(parts.feeNet)} + 부가세 {won(parts.feeTax)}</small>}</div><div className="result-value"><span>수수료 제외 PPL 금액 · 부가세 포함</span><strong>{won(parts?.media)}</strong>{parts&&<small>공급가액 {won(parts.mediaNet)} + 부가세 {won(parts.mediaTax)}</small>}</div></div><p className="result-note">수수료는 위 PPL 총금액에 포함됩니다. 총금액 3,300만원 × 10% = 수수료 330만원(부가세 포함). 방송 비용에는 공급가액을 반영하며, 원 미만은 버립니다.</p></section>;
 }
 export function PplScheduleFields({contract,allocations,onChange}:{contract:Contract;allocations:Allocation[];onChange:(airings:PplAiring[])=>void}){
  const rows=contract.airings||[];
