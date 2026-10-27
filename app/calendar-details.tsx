@@ -1,7 +1,7 @@
 'use client';
 import {Dialog,DialogContent,DialogTitle,DialogDescription,DialogClose} from '@/components/ui/dialog';
 import {X} from 'lucide-react';
-import {skuOptions} from '@/lib/sku-options';
+import {compositionLabel} from '@/lib/sales-compositions';
 import {partyChoices} from '@/lib/counterparties';
 import {compositions,costPlan,sides,sideName,estimated as estimate,displayChannel} from '@/lib/workflow';
 import {actualDateTime,numberOrNull,unifiedResult,resultMetrics,type Item,type SaleResult} from '@/lib/scm-model';
@@ -27,7 +27,7 @@ export function CalendarDetails({item,day,dayItems,finance,dark,largeText,onClos
  ]}/></Section>
  <Section title="PPL 연결">{record.pplLinks?.length?<ul className="detail-links">{record.pplLinks.map(link=><li key={link.id}><strong>{link.program} · {link.kind}</strong><span>{link.date} {link.time} · {link.channel}</span><small>청약사 {partyChoices(finance).find(p=>p.id===link.agencyId)?.name||link.agencyId?.replace('channel:','')||'미입력'}{link.originalDate?' · 원본 본방일 '+link.originalDate:''}</small><small>연결ID {link.pplId}</small></li>)}</ul>:<Facts rows={record.ppl==='있음'?[['PPL 여부',record.ppl],['프로그램',text(record.program)],['송출 구분',text(record.pplKind)]]:[['PPL 여부',text(record.ppl)]]}/>}</Section>
  <Section title="방송 전 목표·수량"><Facts rows={[
- ['주문 목표',money(record.target)],['홈쇼핑 목표',money(record.hsTarget)],['사업계획 이익목표',money(record.businessProfitTarget)],...sides.filter(side=>cs![side].enabled).flatMap(side=>[[sideName(side)+' 판매 구성',cs![side].sku?(skuOptions.find(x=>x.code===cs![side].sku)?.name||'기존 저장 구성 · 목록 확인 필요'):'미입력'],[sideName(side)+' 계획 주문',format(cs![side].plannedQuantity,'세트')],[sideName(side)+' 전환율',format(cs![side].conversionRate,'%')],[sideName(side)+' 계획 예상출고',format(estimate(cs![side].plannedQuantity,cs![side].conversionRate,cp!.quantityRounding)?.toString(),'세트')]] as [string,string][]),...(record.price?[['등록 단가',money(record.price)] as [string,string]]:[])
+ ['주문 목표',money(record.target)],['홈쇼핑 목표',money(record.hsTarget)],['사업계획 이익목표',money(record.businessProfitTarget)],...sides.filter(side=>cs![side].enabled).flatMap(side=>[[sideName(side)+' 판매 구성',compositionLabel(cs![side])],[sideName(side)+' 계획 주문',format(cs![side].plannedQuantity,'세트')],[sideName(side)+' 전환율',format(cs![side].conversionRate,'%')],[sideName(side)+' 계획 예상출고',format(estimate(cs![side].plannedQuantity,cs![side].conversionRate,cp!.quantityRounding)?.toString(),'세트')]] as [string,string][]),...(record.price?[['등록 단가',money(record.price)] as [string,string]]:[])
  ]}/></Section>
  <Section title="계약·비용 배분">{allocations.length?<ul className="detail-links">{allocations.map(a=>{const c=finance.contracts.find(x=>x.id===a.contractId);return <li key={a.id}><strong>{c?.name||a.contractId}</strong><span>{c?.code} · {c?.party}</span><Facts rows={[["배분 공급가액",money(a.net)],["배분 부가세",money(a.tax)],["비용 귀속월",a.month]]}/></li>})}</ul>:record.contractId||record.allocation?<Facts rows={[["등록 계약번호",text(record.contractId)],["등록 계약 공급가액",money(record.contractAmount)],["등록 배분금액",money(record.allocation)],["비용 귀속월",text(record.attribution)]]}/>:<p className="detail-empty">연결된 계약·배분이 없습니다.</p>}</Section>
  <Section title="방송결과" wide>{record.result?<><Facts rows={[

@@ -877,3 +877,5 @@ button { transition:background 180ms cubic-bezier(.22,.25,0,1),color 180ms cubic
 .broadcast-progress-status,.broadcast-progress[data-incomplete="true"] .broadcast-progress-status,[data-theme="dark"] .broadcast-progress-status,[data-theme="dark"] .broadcast-progress[data-incomplete="true"] .broadcast-progress-status{color:var(--ink)}
 .broadcast-missing-chips>span{background:var(--surface-alt);color:var(--secondary)}
 @media(max-width:600px){.dense-picker .broadcast-picker-shell>header{padding:12px}.dense-picker .broadcast-picker-search{margin:0 12px 8px}.broadcast-list-filters{margin:0 12px 8px}.broadcast-list-filters button{padding:4px 6px;font-size:11px}.dense-broadcast-scroll{margin:0 12px}.dense-picker .broadcast-picker-shell>footer{padding:8px 12px}.broadcast-pagination{gap:6px}}
+
+.sales-composition-dialog{max-width:min(560px,calc(100vw - 32px));gap:18px;padding:24px}.sales-composition-actions{display:flex;justify-content:flex-end;gap:8px}

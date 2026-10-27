@@ -1,3 +1,4 @@
+import {salesCompositionChoices} from '@/lib/sales-compositions';
 import {readSyncSnapshot} from '@/lib/sync-status';
 import {broadcastClockIssues,usesActualClock} from '@/lib/broadcast-clock';
 import {authenticated} from '@/lib/runtime';
@@ -51,6 +52,14 @@ async function handlePOST(request:Request){
     record=withFinance(record,currentFinance);
     if(record?.result)record.result=unifiedResult(record.result);
     const errors=[...validateItem(record),...validateWorkflow(record)];if(errors.length)return json({error:errors.join(' ')},400);
+    if(record.compositions){
+      const options=salesCompositionChoices(currentFinance);
+      for(const side of ['single','double'] as const){
+        const c=record.compositions[side],option=options.find(x=>x.code===c.sku);
+        if(c.sku.startsWith('custom:')&&!option)return json({error:'판매 구성을 목록에서 다시 선택해 주세요.'},400);
+        record.compositions[side]={...c,compositionName:option?.name||''};
+      }
+    }
     record=computedItem(record);
     const bytes=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(original));
     const hash=Array.from(new Uint8Array(bytes),b=>b.toString(16).padStart(2,'0')).join('');

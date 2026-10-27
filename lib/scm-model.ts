@@ -14,7 +14,7 @@ export type BroadcastResult = {
 };
 export type PplLink = {id:string; pplId:string; program:string; kind:string; date:string; time:string; channel:string; agencyId?:string; originalDate?:string; originalPplId?:string; contractRef?:string;airingId?:string};
 export type ReviewState='작성 중'|'검토 요청'|'보완 요청'|'검토 완료';
-export type Composition={enabled:boolean;sku:string;units:string;unitCost:string;costDate:string;sellingPrice:string;commission:string;vatBasis:'포함'|'별도';plannedQuantity:string;conversionRate:string};
+export type Composition={enabled:boolean;sku:string;compositionName?:string;units:string;unitCost:string;costDate:string;sellingPrice:string;commission:string;vatBasis:'포함'|'별도';plannedQuantity:string;conversionRate:string};
 export type Gift={id:string;side:'single'|'double'|'both';item:string;units:string;unitCost:string};
 export type CostPlan={adCost:string;guestCost:string;administrationCost:string;otherCost:string;shippingRate:string;shippingBasis:''|'sets'|'manual';shippingCount:string;quantityRounding:''|'floor'|'round';moneyRounding:''|'floor'|'round';pplProcessingMonth:string};
 export type Item = {

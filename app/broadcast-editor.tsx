@@ -2,13 +2,13 @@
 import {archiveMissing} from '@/lib/broadcast-archive';
 import {usesActualClock} from '@/lib/broadcast-clock';
 import {BreakEvenPanel} from './break-even-panel';
-import {skuOptions} from '@/lib/sku-options';
+import {SalesCompositionSelect} from './sales-composition-select';
+import type {Finance,FinanceAction} from '@/lib/finance-model';
 import {actualDateTime,type Item,type Composition} from '@/lib/scm-model';
 import {compositions,costPlan,supplyPrice,estimated,sides,sideName,displayChannel} from '@/lib/workflow';
 export {PplEditor} from './ppl-editor';
 import {Field,NumberInput,Value,Section,show} from './entry-fields';
 type Props={form:Item;onChange:(item:Item)=>void;items:Item[]};
-const compositionOptions=[...skuOptions].sort((a,b)=>a.name.localeCompare(b.name,'ko',{numeric:true}));
 export function BroadcastEditor({form,onChange,items}:Props){
  const put=(k:keyof Item,v:unknown)=>onChange({...form,[k]:v});
  const actual=usesActualClock(items.find(x=>x.id===form.id));
@@ -27,10 +27,10 @@ export function BroadcastEditor({form,onChange,items}:Props){
  {form.status==='취소'&&<Field label="취소 사유 · 필수" hint="예: 결방, 편성일 변경. 기존 기록과 비용 연결은 보존됩니다."><textarea className="form-control" value={form.cancelReason||''} onChange={e=>put('cancelReason',e.target.value)}/></Field>}
  </div></>;
 }
-export function SalesEditor({form,onChange}:{form:Item;onChange:(item:Item)=>void}){
+export function SalesEditor({form,onChange,finance,save}:{form:Item;onChange:(item:Item)=>void;finance:Finance;save:(action:FinanceAction)=>Promise<Finance|false>}){
  const cs=compositions(form);const put=(side:'single'|'double',key:keyof Composition,value:string|boolean)=>onChange({...form,compositions:{...cs,[side]:{...cs[side],[key]:value}}});
  return <><Section title="구성별 판매조건" note="판매가와 수수료율로 공급단가를 계산합니다. 구성 수량과 단위원가는 당시 적용값으로 보관합니다."/><div className="result-lines">{sides.map(side=><section className="sale-card" key={side}><h3>{sideName(side)}</h3><label className="vat-toggle"><input type="checkbox" checked={cs[side].enabled} onChange={e=>put(side,'enabled',e.target.checked)}/>이 구성 사용</label>{cs[side].enabled&&<div className="sale-fields">
- <Field label="판매 구성" hint="상품명·수량·사은품을 확인하고 선택하세요."><select className="form-control" value={cs[side].sku} onChange={e=>put(side,'sku',e.target.value)}><option value="">판매 구성을 선택하세요</option>{cs[side].sku&&!skuOptions.some(x=>x.code===cs[side].sku)&&<option value={cs[side].sku}>기존 저장 구성 · 목록 확인 필요</option>}{compositionOptions.map(x=><option key={x.code} value={x.code}>{x.name}</option>)}</select></Field>
+ <SalesCompositionSelect value={cs[side].sku} name={cs[side].compositionName} finance={finance} save={save} onSelect={option=>onChange({...form,compositions:{...cs,[side]:{...cs[side],sku:option.code,compositionName:option.name}}})}/>
  <Field label="세트당 상품 수량 (박스/개)" hint="단위원가와 같은 단위 사용"><NumberInput integer value={cs[side].units} onChange={v=>put(side,'units',v)}/></Field>
  <Field label="판매가 (원)"><NumberInput value={cs[side].sellingPrice} onChange={v=>put(side,'sellingPrice',v)}/></Field>
  <Field label="판매가 부가세 기준"><select className="form-control" value={cs[side].vatBasis} onChange={e=>put(side,'vatBasis',e.target.value)}><option>포함</option><option>별도</option></select></Field>

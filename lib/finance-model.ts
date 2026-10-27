@@ -1,3 +1,4 @@
+import {salesCompositionChoices,compositionKey,type SalesComposition} from './sales-compositions.ts';
 import {registrationIssues,resolveAiring} from './ppl-registration.ts';
 import type {AgencyTerms} from './ppl-registration.ts';
 import type {PplLink} from './scm-model.ts';
@@ -22,8 +23,8 @@ export type Contract=Money&AgencyTerms&{invoiceApprovals?:string[];airings?:PplA
 export type Allocation=Money&{airing?:PplAiring;id:string;code:string;contractId:string;broadcastId:string;month:string;active:boolean};
 export type InvoiceLink=Money&{contractId:string};
 export type Invoice=Money&{id:string;code:string;party:string;businessNo:string;partyId?:string;date:string;approvalNo:string;notes:string;active:boolean;links:InvoiceLink[];linkTaxMode?:'auto'};
-export type Finance={version:number;taxImports?:TaxInvoice[];programs?:{id:string;channel:string;name:string}[];parties?:Party[];contracts:Contract[];allocations:Allocation[];invoices:Invoice[];next:{contract:number;allocation:number;invoice:number}};
-export type FinanceAction={kind:'invoiceRefs'|'taxImport'|'program'|'party'|'contract'|'allocation'|'allocations'|'invoice'|'voidAllocation'|'voidInvoice';data:Record<string,unknown>};
+export type Finance={version:number;salesCompositions?:SalesComposition[];taxImports?:TaxInvoice[];programs?:{id:string;channel:string;name:string}[];parties?:Party[];contracts:Contract[];allocations:Allocation[];invoices:Invoice[];next:{contract:number;allocation:number;invoice:number}};
+export type FinanceAction={kind:'salesComposition'|'invoiceRefs'|'taxImport'|'program'|'party'|'contract'|'allocation'|'allocations'|'invoice'|'voidAllocation'|'voidInvoice';data:Record<string,unknown>};
 export const emptyFinance=():Finance=>({version:0,contracts:[],allocations:[],invoices:[],next:{contract:1,allocation:1,invoice:1}});
 export class FinanceError extends Error{}
 export const amount=(v:string)=>Number(v||0);
@@ -46,7 +47,14 @@ export function applyFinanceAction(current:Finance,action:FinanceAction,broadcas
   const id=typeof d.id==='string'?d.id:'';
   const identity=(kind:'contract'|'allocation'|'invoice',existing?:{id:string;code:string})=>existing?{id:existing.id,code:existing.code}:{id:uuid(),code:(kind==='contract'?'PPL-'+now.slice(0,4):kind==='invoice'?'INV-'+now.slice(0,4):'ALLOC')+'-'+String(f.next[kind]++).padStart(kind==='allocation'?6:4,'0')};
   const selectedParty=()=>{const n=business(str(d,'businessNo',true));const p=partyChoices(f).find(x=>x.id===(d.partyId||partyId(n)));if(!p||p.businessNo!==n)throw new FinanceError('사업자등록번호가 확인된 거래처를 목록에서 선택해 주세요.');return {partyId:p.id,party:p.name,businessNo:p.businessNo};};
-  if(action.kind==='invoiceRefs'){
+  if(action.kind==='salesComposition'){
+    if(typeof d.name!=='string'||!d.name.trim()||d.name.trim().length>120)throw new FinanceError('판매 구성명은 1~120자로 입력해 주세요.');
+    const name=d.name.trim().replace(/\s+/g,' ');
+    if(!salesCompositionChoices(f).some(x=>compositionKey(x.name)===compositionKey(name))){
+      if((f.salesCompositions?.length||0)>=2000)throw new FinanceError('판매 구성 등록 한도를 초과했습니다.');
+      (f.salesCompositions??=[]).push({code:'custom:'+uuid(),name});
+    }
+  }else if(action.kind==='invoiceRefs'){
     const c=f.contracts.find(c=>c.id===d.contractId);
     if(!c||!Array.isArray(d.approvals)||d.approvals.length>20||d.approvals.some(n=>typeof n!=='string'||!approvalValid(n)))throw new FinanceError('계약을 선택하고 홈택스 승인번호 24자리를 입력해 주세요.');
     c.invoiceApprovals=[...new Set((d.approvals as string[]).map(normalizeApproval))];
