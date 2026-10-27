@@ -747,3 +747,7 @@ button { transition:background 180ms cubic-bezier(.22,.25,0,1),color 180ms cubic
  .contract-identity-grid,.contract-money-grid,.agency-amounts { grid-template-columns:minmax(0,1fr); }
  .contract-section { padding:16px 0; }
 }
+.broadcast-progress{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;padding:10px 12px;margin-bottom:12px;border-radius:10px;background:var(--selected);font-size:13px}
+.broadcast-progress[data-incomplete="true"]{border-left:3px solid #c98716}
+.broadcast-progress strong{white-space:nowrap}
+.broadcast-progress small{flex-basis:100%;color:var(--secondary)}

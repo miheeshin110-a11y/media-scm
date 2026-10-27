@@ -9,7 +9,9 @@ export async function saveRecord(db:DB,record:Item,baseVersion:number,requestId:
   const existing=await db.prepare('SELECT payload,version FROM scm_records WHERE id=?').bind(record.id).first<{payload:string;version:number}>();
   if((existing?.version||0)!==baseVersion)throw new SaveConflict('다른 변경 내용이 먼저 저장됐습니다. 새로 불러온 뒤 수정해 주세요.');
   const now=new Date().toISOString(),version=baseVersion+1;
-  const next={...record,version,updatedAt:now,updatedBy:actor,sync:'대기' as const},payload=JSON.stringify(next);
+  const previous:Item|undefined=existing?JSON.parse(existing.payload):undefined;
+  const registrationSource=previous?previous.registrationSource:record.registrationSource;
+  const next={...record,registrationSource,version,updatedAt:now,updatedBy:actor,sync:'대기' as const},payload=JSON.stringify(next);
   const financeGuard=financeVersion===undefined?'':' AND COALESCE((SELECT version FROM scm_finance WHERE id=1),0)=?';
   const guardArgs=financeVersion===undefined?[]:[financeVersion];
   const mutation=baseVersion===0

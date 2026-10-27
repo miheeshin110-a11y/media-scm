@@ -18,6 +18,7 @@ export type Composition={enabled:boolean;sku:string;units:string;unitCost:string
 export type Gift={id:string;side:'single'|'double'|'both';item:string;units:string;unitCost:string};
 export type CostPlan={adCost:string;guestCost:string;administrationCost:string;otherCost:string;shippingRate:string;shippingBasis:''|'sets'|'manual';shippingCount:string;quantityRounding:''|'floor'|'round';moneyRounding:''|'floor'|'round';pplProcessingMonth:string};
 export type Item = {
+  registrationSource?:'ppl'|'broadcast';
   id:string; date:string; time:string; dateConvention?:'actual'; channel:string; item:string; shortItem:string; owner:string;
   status:string; urgent:boolean; ppl:string; program:string; pplKind:string; price:string; target:string;
   rate:string; contractId:string; contractAmount:string; allocation:string; attribution:string;
@@ -53,6 +54,7 @@ export function validateItem(item:Item):string[] {
   if(!item||typeof item!=='object')return ['입력 내용이 올바르지 않습니다.'];
   for(const key of ['date','time','channel','item','shortItem','owner','status','ppl','program','pplKind','price','target','rate','contractId','contractAmount','allocation','attribution'] as const)if(typeof item[key]!=='string')return ['입력 필드 형식을 확인해 주세요.'];
   if(typeof item.urgent!=='boolean')return ['급편성 여부를 확인해 주세요.'];
+  if(item.registrationSource!==undefined&&!['ppl','broadcast'].includes(item.registrationSource))errors.push('등록 경로 형식을 확인해 주세요.');
   if(item.pplLinks&&(!Array.isArray(item.pplLinks)||item.pplLinks.some(link=>!link||['id','pplId','program','kind','date','time','channel'].some(key=>typeof link[key as keyof PplLink]!=='string'))))return ['PPL 연결 형식을 확인해 주세요.'];
   if(!item.id||typeof item.id!=='string'||item.id.length>100)errors.push('방송 ID를 확인해 주세요.');
   if(item.workflow){
