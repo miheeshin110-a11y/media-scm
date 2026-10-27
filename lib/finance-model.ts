@@ -11,7 +11,7 @@ import {partyChoices,partyId,contractChannels,ownBusinessNo,type Party} from './
 import {normalizeApproval,approvalValid,mergeTaxInvoices,type TaxInvoice} from './tax-reconcile.ts';
 export type Money={net:string;tax:string;taxMode?:'auto'|'manual'};
 export const defaultVat=(net:string)=>/^\d+$/.test(net)?String(Math.floor(Number(net)/10)):'';
-export function contractName(c:{date:string;party:string;channel:string;code:string;program?:string}){return [c.date.slice(0,7)||'계약일 미정',c.party||'거래처 선택',c.channel||'채널 미정',...(c.program?[c.program]:[]),c.code||'저장 시 계약번호'].join(' · ');}
+export function contractName(c:{date:string;party:string;channel:string;code:string;program?:string}){return [c.party||'거래처 선택',c.channel||'채널 미정',...(c.program?[c.program]:[]),c.code||'저장 시 계약번호'].join(' · ');}
 // Cumulative integer rounding preserves the exact contract VAT when fully allocated.
 export function proportionalTaxes(total:Money,nets:string[]):string[]{
  if(!/^\d+$/.test(total.net)||!/^\d+$/.test(total.tax)||nets.some(n=>!/^\d+$/.test(n)))return nets.map(()=>'');

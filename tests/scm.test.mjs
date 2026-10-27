@@ -190,11 +190,11 @@ test('a multi-broadcast save is atomic, supports redistribution, preserves IDs a
 
 test('contract names are generated and auto VAT is authoritative with exact allocation rounding',()=>{
  let f=applyFinanceAction(emptyFinance(),action('contract',contractData({name:'임의 입력',net:'101',tax:'999',taxMode:'auto'})),new Set(),'2026-09-17');
- const c=f.contracts[0];assert.equal(c.name,'2026-09 · 주식회사 미디어상생 · TV조선 · '+c.code);assert.equal(c.tax,'10');
+ const c=f.contracts[0];assert.equal(c.name,'주식회사 미디어상생 · TV조선 · '+c.code);assert.equal(c.tax,'10');
  f=applyFinanceAction(f,action('allocations',{contractId:c.id,rows:['33','33','35'].map((net,i)=>({broadcastId:['A','B','C'][i],month:'2026-09',net,tax:'999'}))}),new Set(['A','B','C']));
  assert.deepEqual(f.allocations.map(a=>a.tax),['3','3','4']);assert.equal(contractTotals(f,c.id).remaining.tax,'0');
  f=applyFinanceAction(f,action('contract',{...c,date:'2026-10-01',net:'101',tax:'9',taxMode:'manual'}),new Set(['A','B','C']));
- assert.equal(f.contracts[0].id,c.id);assert.equal(f.contracts[0].code,c.code);assert.ok(f.contracts[0].name.startsWith('2026-10 ·'));
+ assert.equal(f.contracts[0].id,c.id);assert.equal(f.contracts[0].code,c.code);assert.equal(f.contracts[0].name,c.name);
  assert.deepEqual(f.allocations.map(a=>a.tax),['2','3','4']);assert.equal(contractTotals(f,c.id).remaining.tax,'0');
 });
 
@@ -333,7 +333,7 @@ test('allocation change invalidates review and recalculates automatic profit wit
  assert.equal(row.workflow,'검토 요청');assert.equal(row.reviewedAt,null);assert.equal(withFinance(row,f).result.profit,'11606909');assert.equal(withFinance(withFinance(row,f),f).result.profit,'11606909');await db.close();
 });
 test('contract date can remain unknown and program names are registered once per channel',()=>{
- let f=applyFinanceAction(emptyFinance(),action('contract',contractData({date:''})),new Set());assert.equal(f.contracts[0].date,'');assert.ok(f.contracts[0].name.startsWith('계약일 미정'));
+ let f=applyFinanceAction(emptyFinance(),action('contract',contractData({date:''})),new Set());assert.equal(f.contracts[0].date,'');assert.ok(!f.contracts[0].name.includes('계약일 미정'));
  f=applyFinanceAction(f,action('program',{channel:'TV조선',name:'세개의 시선'}),new Set());
  assert.throws(()=>applyFinanceAction(f,action('program',{channel:'TV조선',name:'세개의시선'}),new Set()),/등록|중복/);
 });
