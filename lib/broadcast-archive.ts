@@ -27,7 +27,7 @@ export function archiveMissing(item:Item,today:string):MissingField[]{
  if(!sides.some(s=>cs[s].enabled))fields.push({group:'판매조건',label:'사용할 구성',step:2,result:false});
  for(const side of sides)if(cs[side].enabled){
   const c=cs[side],prefix=sideName(side)+' ';
-  add('판매조건',prefix+'SKU',c.sku,2);
+  add('판매조건',prefix+'판매 구성',c.sku,2);
   for(const [key,label] of [['units','구성수량'],['sellingPrice','판매가'],['commission','판매수수료율'],['unitCost','단위원가']] as const)add('판매조건',prefix+label,c[key],2,false,true);
   for(const [key,label] of [['plannedQuantity','계획 주문수량'],['conversionRate','예상 전환율']] as const)add('목표·수량',prefix+label,c[key],3,false,true);
  }

@@ -72,7 +72,7 @@ export function missingForReview(item:Item):string[]{
  }
  for(const key of ['target','hsTarget','businessProfitTarget'] as const)if(numberOrNull(item[key])===null)missing.push(({target:'주문 목표',hsTarget:'홈쇼핑 목표',businessProfitTarget:'이익 목표'})[key]);
  const c=compositions(item),p=costPlan(item);
- for(const side of sides)if(c[side].enabled){if(!c[side].sku||!c[side].units||!c[side].plannedQuantity||c[side].conversionRate==='')missing.push(sideName(side)+' SKU·구성·계획수량·전환율');if(supplyPrice(c[side])===null)missing.push(sideName(side)+' 판매가·수수료율');}
+ for(const side of sides)if(c[side].enabled){if(!c[side].sku||!c[side].units||!c[side].plannedQuantity||c[side].conversionRate==='')missing.push(sideName(side)+' 판매 구성·구성수량·계획수량·전환율');if(supplyPrice(c[side])===null)missing.push(sideName(side)+' 판매가·수수료율');}
  if(!p.quantityRounding)missing.push('수량 소수점 처리');
  if(item.result&&item.calculationMode==='auto'&&costCalculation(item).profit===null)missing.push('방송결과 자동계산에 필요한 수량·비용');
  return missing;
