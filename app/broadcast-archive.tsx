@@ -11,7 +11,7 @@ export function BroadcastArchive({items,selectedId,onSelect,busy,readOnly,onRefr
  const [filter,setFilter]=useState<ArchiveFilter>({month:'',owner:'',query:'',group:'',state:'all'}),[page,setPage]=useState(1);
  const change=(next:Partial<ArchiveFilter>)=>{setFilter({...filter,...next});setPage(1)};
  const selected=items.find(x=>x.id===selectedId),rows=archiveRows(items,filter,today),pages=Math.max(1,Math.ceil(rows.length/pageSize)),current=Math.min(page,pages);
- const counts=archiveRows(items,{...filter,state:'all',group:''},today);
+ const counts=archiveRows(items,{...filter,state:'all'},today);
  const states=[['all','전체',counts.length],['missing','미입력 있음',counts.filter(x=>x.missing.length).length],['entered','확인 항목 입력됨',counts.filter(x=>!x.missing.length&&x.item.status!=='취소').length],['cancelled','취소',counts.filter(x=>x.item.status==='취소').length]] as const;
  return <section className="review-workspace archive-workspace" aria-label="방송 보관함" aria-busy={busy}>
   <header className="review-toolbar"><div><h2>{selected?'방송별 입력 현황':'저장된 방송'}</h2><p>부분 저장한 방송도 모두 표시됩니다. 팀장·매니저 누구나 미입력 항목을 확인하고 이어서 입력할 수 있습니다.</p></div><button className="secondary-button" disabled={busy} onClick={onRefresh}>최신 자료 불러오기</button></header>
