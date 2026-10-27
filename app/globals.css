@@ -736,6 +736,12 @@ button { transition:background 180ms cubic-bezier(.22,.25,0,1),color 180ms cubic
 .agency-amounts .result-value { padding:14px 16px; }
 .agency-amounts small { display:block; margin-top:5px; font-size:var(--caption); color:var(--secondary); }
 .agency-section>.result-note { margin:10px 0 0; }
+.ppl-pending { margin:14px 0; padding:18px; background:var(--selected); border:1px solid var(--line); border-radius:14px; }
+.ppl-pending strong { display:block; font-size:var(--list); }
+.ppl-pending p { margin:8px 0 12px; color:var(--secondary); }
+.quick-broadcast { margin:14px 0; }
+.quick-broadcast h3 { margin:0 0 8px; font-size:var(--list); }
+.quick-broadcast small { display:block; margin-top:10px; color:var(--secondary); }
 .contract-identity-grid .master-register { grid-column:1/-1; }
 @media(max-width:699px) {
  .contract-identity-grid,.contract-money-grid,.agency-amounts { grid-template-columns:minmax(0,1fr); }
