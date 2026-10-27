@@ -41,7 +41,7 @@ async function handlePOST(request:Request){
       if(record.workflow==='보완 요청'&&old?.workflow!=='보완 요청')return json({error:'팀장만 보완을 요청할 수 있습니다.'},403);
       if(record.reviewNote!==old?.reviewNote&&record.reviewNote)return json({error:'검토 메모는 팀장이 작성합니다.'},403);
       record.reviewNote=old?.reviewNote;
-      if(old?.workflow==='검토 완료')record.workflow='검토 요청';
+      if(old?.workflow==='검토 완료')record.workflow='작성 중';
     }
     record={...record,shortItem:record.item,reviewedBy:old?.reviewedBy,reviewedAt:old?.reviewedAt};
     if(record.workflow==='검토 완료'){record.reviewedBy=identity(request)!;record.reviewedAt=new Date().toISOString();}

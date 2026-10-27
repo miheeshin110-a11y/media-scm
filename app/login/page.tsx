@@ -15,7 +15,7 @@ export default async function Login({searchParams}:{searchParams:Promise<{error?
         <div className={styles.intro}>
           <p className={styles.eyebrow}>업무 시작하기</p>
           <h1 id="login-title" className={styles.title}>회사 계정으로 로그인</h1>
-          <p className={styles.description}>방송 입력부터 PPL 배분, 팀장 검토까지<br />한곳에서 이어서 관리하세요.</p>
+          <p className={styles.description}>방송 입력부터 PPL 배분, 미입력 확인까지<br />한곳에서 이어서 관리하세요.</p>
         </div>
         {!ready && <p className={styles.notice} role="status">서비스 연결을 준비 중입니다. 설정 완료 후 로그인할 수 있습니다.</p>}
         {error && <p className={styles.error} role="alert">로그인하지 못했습니다. 등록된 회사 계정인지 확인한 뒤 다시 시도해 주세요.</p>}

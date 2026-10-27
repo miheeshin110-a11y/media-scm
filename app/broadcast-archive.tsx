@@ -1,0 +1,35 @@
+'use client';
+import {useState} from 'react';
+import type {Item} from '@/lib/scm-model';
+import {archiveGroups,archiveMissing,archiveRows,type ArchiveFilter} from '@/lib/broadcast-archive';
+import {displayChannel} from '@/lib/workflow';
+import {registrationLabel} from '@/lib/broadcast-progress';
+type Props={items:Item[];selectedId:string;onSelect:(id:string)=>void;busy:boolean;readOnly:boolean;onRefresh:()=>void;onEdit:(item:Item,step:number,result?:boolean)=>void};
+const pageSize=10;
+export function BroadcastArchive({items,selectedId,onSelect,busy,readOnly,onRefresh,onEdit}:Props){
+ const today=new Date().toLocaleDateString('sv-SE',{timeZone:'Asia/Seoul'});
+ const [filter,setFilter]=useState<ArchiveFilter>({month:'',owner:'',query:'',group:'',state:'all'}),[page,setPage]=useState(1);
+ const change=(next:Partial<ArchiveFilter>)=>{setFilter({...filter,...next});setPage(1)};
+ const selected=items.find(x=>x.id===selectedId),rows=archiveRows(items,filter,today),pages=Math.max(1,Math.ceil(rows.length/pageSize)),current=Math.min(page,pages);
+ const counts=archiveRows(items,{...filter,state:'all',group:''},today);
+ const states=[['all','전체',counts.length],['missing','미입력 있음',counts.filter(x=>x.missing.length).length],['entered','확인 항목 입력됨',counts.filter(x=>!x.missing.length&&x.item.status!=='취소').length],['cancelled','취소',counts.filter(x=>x.item.status==='취소').length]] as const;
+ return <section className="review-workspace archive-workspace" aria-label="방송 보관함" aria-busy={busy}>
+  <header className="review-toolbar"><div><h2>{selected?'방송별 입력 현황':'저장된 방송'}</h2><p>부분 저장한 방송도 모두 표시됩니다. 팀장·매니저 누구나 미입력 항목을 확인하고 이어서 입력할 수 있습니다.</p></div><button className="secondary-button" disabled={busy} onClick={onRefresh}>최신 자료 불러오기</button></header>
+  {selected?<ArchiveDetail item={selected} today={today} busy={busy} readOnly={readOnly} onBack={()=>onSelect('')} onEdit={onEdit}/>:<>
+   <div className="archive-filters"><label>방송월<input className="form-control" type="month" value={filter.month} onChange={e=>change({month:e.target.value})}/></label><label>담당자<select className="form-control" value={filter.owner} onChange={e=>change({owner:e.target.value})}><option value="">전체 담당자</option>{[...new Set(items.map(x=>x.owner).filter(Boolean))].sort().map(x=><option key={x}>{x}</option>)}</select></label><label>미입력 분야<select className="form-control" value={filter.group} onChange={e=>change({group:e.target.value as ArchiveFilter['group']})}><option value="">전체 분야</option>{archiveGroups.map(x=><option key={x}>{x}</option>)}</select></label><label className="archive-search">방송 검색<input className="form-control" value={filter.query} placeholder="날짜 · 채널 · 아이템 · 담당자" onChange={e=>change({query:e.target.value})}/></label><button className="text-button" onClick={()=>change({month:'',owner:'',query:'',group:'',state:'all'})}>초기화</button></div>
+   <div className="review-tabs archive-tabs" aria-label="입력 현황 필터">{states.map(([state,label,count])=><button key={state} aria-pressed={filter.state===state} className={filter.state===state?'active':''} onClick={()=>change({state})}>{label} <b>{count}</b></button>)}</div>
+   <div className="review-scroll"><table className="review-table archive-table"><thead><tr><th>방송일·시간</th><th>채널 · 아이템</th><th>담당자</th><th>입력 현황</th><th>미입력 분야 · 클릭하여 입력</th><th>보기</th></tr></thead><tbody>{rows.slice((current-1)*pageSize,current*pageSize).map(({item:x,missing})=><tr key={x.id}><td>{x.date||'날짜 미정'}<small>{x.time||'시간 미정'}</small></td><td><strong>{displayChannel(x.channel)} · {x.item||'아이템 미입력'}</strong><small>{registrationLabel(x)}</small></td><td>{x.owner||'미지정'}</td><td><span className="archive-status">{x.status==='취소'?'취소':missing.length?`미입력 ${missing.length}개`:'확인 항목 입력됨'}</span></td><td><div className="archive-group-links">{archiveGroups.map(g=>{const fields=missing.filter(m=>m.group===g);return fields.length?<button key={g} className="text-button" disabled={busy} title={fields.map(m=>m.label).join(', ')} onClick={()=>{onSelect(x.id);onEdit(x,fields[0].step,fields[0].result)}}>{g} <b>{fields.length}</b></button>:null})}{!missing.length&&<span className="archive-muted">미입력 없음</span>}</div></td><td><button className="secondary-button" disabled={busy} onClick={()=>onSelect(x.id)}>상세</button></td></tr>)}</tbody></table>{!rows.length&&<div className="review-empty"><h3>조건에 맞는 방송이 없습니다.</h3><p>조회 조건을 초기화하거나 방송 입력에서 부분 저장해 주세요.</p></div>}</div>
+   <footer className="archive-pagination"><span>{rows.length}건 · {current} / {pages}페이지</span><span>미입력 우선 · 최신 방송일순</span><div><button className="secondary-button" disabled={current===1} onClick={()=>setPage(current-1)}>이전</button><button className="secondary-button" disabled={current===pages} onClick={()=>setPage(current+1)}>다음</button></div></footer>
+   <p className="archive-footnote">빈칸만 확인합니다. 0원·0개는 입력된 값으로 처리하며, 금액의 정확성이나 승인 여부를 뜻하지 않습니다. 방송결과는 실제 방송일 다음 날부터 확인합니다.</p>
+  </>}
+ </section>;
+}
+function ArchiveDetail({item,today,busy,readOnly,onBack,onEdit}:{item:Item;today:string;busy:boolean;readOnly:boolean;onBack:()=>void;onEdit:Props['onEdit']}){
+ const missing=archiveMissing(item,today);
+ return <><div className="review-detail-heading"><button className="secondary-button" disabled={busy} onClick={onBack}>← 목록으로</button><strong>{item.date||'날짜 미정'} {item.time} · {displayChannel(item.channel)} · {item.item}</strong><span className="archive-status">{item.status==='취소'?'취소':`미입력 ${missing.length}개`}</span></div>
+  <div className="review-scroll review-detail-body"><p className="result-note">담당자: {item.owner||'미지정'} · {registrationLabel(item)}{item.updatedAt?` · 마지막 저장 ${new Date(item.updatedAt).toLocaleString('ko-KR',{timeZone:'Asia/Seoul'})}`:''}{item.updatedBy?` · 저장자 ${item.updatedBy}`:''}</p>
+   <div className="review-summary-grid">{archiveGroups.map((g,i)=>{const fields=missing.filter(m=>m.group===g);return <section className="review-card" key={g}><header><h3>{g}</h3><button className="text-button" disabled={busy} onClick={()=>onEdit(item,i===5?0:i,i===5)}>{readOnly?'내용 보기':fields.length?'이어서 입력':'내용 확인·수정'}</button></header>{fields.length?<ul className="archive-missing-list">{fields.map(m=><li key={m.label}><button className="text-button" disabled={busy} onClick={()=>onEdit(item,m.step,m.result)}>{m.label}<span>입력하기 →</span></button></li>)}</ul>:<p className="archive-muted">{item.status==='취소'?'취소 방송 · 추가 입력 불필요':g==='방송결과'&&!item.result?'방송 전·당일 또는 일정 미정 · 결과 입력 대기':g==='PPL 연결'&&item.ppl==='없음'?'PPL 없음 · 추가 입력 불필요':'확인 대상 미입력 없음'}</p>}</section>})}</div>
+   {item.reviewNote&&<details className="review-missing-details"><summary>기존 검토 메모</summary><p className="review-read-note">{item.reviewNote}</p></details>}
+   <p className="result-note">수정 후 ‘저장하고 보관함으로 돌아가기’를 누르면 남은 미입력 항목이 갱신됩니다. 별도 검토 요청이나 승인 없이 함께 보완합니다.</p>
+  </div></>;
+}
