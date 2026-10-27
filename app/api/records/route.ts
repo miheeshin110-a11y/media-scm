@@ -1,3 +1,4 @@
+import {readSyncSnapshot} from '@/lib/sync-status';
 import {broadcastClockIssues,usesActualClock} from '@/lib/broadcast-clock';
 import {authenticated} from '@/lib/runtime';
 import {runtime,identity,checkWrite,readable,editable,reviewer} from '@/lib/runtime';
@@ -19,7 +20,7 @@ async function handleGET(request:Request){
   const finance=await readFinance(db);
   const merged=new Map(seedRecords.map(item=>[item.id,item]));for(const row of saved.results){const item=JSON.parse(row.payload) as Item;item.sync=row.state==='sent'?'완료':'대기';merged.set(item.id,item);}
   const readOnly=!editable(request);
-  return json({finance,readOnly,canReview:reviewer(request),items:[...merged.values()].map(x=>{const row=withFinance(x,finance);if(readOnly){delete row.updatedBy;delete row.reviewedBy;}return row;}).sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time)),sheetsConfigured:sheetsConfigured(env),storage:'server',actor:identity(request)});
+  return json({syncSnapshot:await readSyncSnapshot(db),finance,readOnly,canReview:reviewer(request),items:[...merged.values()].map(x=>{const row=withFinance(x,finance);if(readOnly){delete row.updatedBy;delete row.reviewedBy;}return row;}).sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time)),sheetsConfigured:sheetsConfigured(env),storage:'server',actor:identity(request)});
 }
 async function handlePOST(request:Request){
   const denied=checkWrite(request);if(denied)return denied;
@@ -55,7 +56,7 @@ async function handlePOST(request:Request){
     const hash=Array.from(new Uint8Array(bytes),b=>b.toString(16).padStart(2,'0')).join('');
     const env=runtime(),saved=await saveRecord(env.DB.withSession('first-primary'),record,baseVersion,requestId,identity(request)!,hash,currentFinance.version);
     let sync:'sent'|'pending'|'not_configured'|'failed'='pending';try{sync=await syncRecord(env,saved.id);}catch{/* Durable save succeeded; retry is safe. */}
-    return json({record:{...saved,sync:sync==='sent'?'완료':'대기'},sync});
+    return json({record:{...saved,sync:sync==='sent'?'완료':'대기'},sync,syncSnapshot:await readSyncSnapshot(env.DB)});
   }catch(error){if(error instanceof SaveConflict)return json({error:error.message},409);if(error instanceof SyntaxError||error instanceof TypeError)return json({error:'입력 형식이 올바르지 않습니다.'},400);return json({error:'저장하지 못했습니다. 입력 내용은 화면에 유지됩니다. 다시 시도해 주세요.'},500);}
 }
 

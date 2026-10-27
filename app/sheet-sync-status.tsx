@@ -1,0 +1,6 @@
+'use client';
+import {syncCounts,sheetStateLabel,type SyncSnapshot} from '@/lib/sync-status';
+export function SheetSyncStatus({snapshot,configured,busy,onRetry,onRefresh}:{snapshot:SyncSnapshot|null;configured:boolean;busy:boolean;onRetry:()=>void;onRefresh:()=>void}){
+ const counts=syncCounts(snapshot);
+ return <section className="sheet-sync-panel" aria-label="구글시트 반영 상태" aria-live="polite"><div><strong>구글시트 자동 반영</strong><span>입력 후 저장하면 자동 전송됩니다. 미입력 항목이 남아 있어도 저장한 값은 반영합니다.</span></div><div className="sheet-sync-actions">{snapshot?<span className="sheet-sync-counts">완료 <b>{counts.sent}</b> · 대기 <b>{counts.pending}</b> · 실패 <b>{counts.failed}</b></span>:<span>전송 상태 확인 중</span>}<button className="secondary-button" disabled={busy||!configured||!snapshot||counts.remaining===0} onClick={onRetry}>{!configured?'시트 연결 필요':counts.remaining?`미반영 ${counts.remaining}건 다시 전송`:'전송할 대기 건 없음'}</button><button className="text-button" disabled={busy} onClick={onRefresh}>상태 새로고침</button></div>{snapshot?.finance&&<small>PPL·계약 자료: {sheetStateLabel(snapshot.finance)} · PPL·계약 자료 전체를 전송 1건으로 계산합니다.</small>}{counts.remaining>0&&<small>서버에 저장된 자료입니다. 다시 전송은 한 번에 방송 최대 5건과 PPL·계약 자료를 처리합니다.</small>}</section>;
+}

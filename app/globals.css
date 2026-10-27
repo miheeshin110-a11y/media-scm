@@ -664,6 +664,17 @@ button { transition:background 180ms cubic-bezier(.22,.25,0,1),color 180ms cubic
 .archive-table td:first-child,.archive-table td:nth-child(3) { white-space:nowrap; }
 .archive-table .secondary-button { padding:7px 10px; min-height:30px; font-size:var(--caption); }
 .archive-status { white-space:nowrap; font-size:var(--caption); color:var(--secondary); }
+.sheet-state { display:inline-block; white-space:nowrap; font-size:var(--caption); padding:4px 7px; border:1px solid var(--line); border-radius:6px; color:var(--secondary); }
+.sheet-state[data-state='pending'] { color:var(--accent); border-color:var(--accent); }
+.sheet-state[data-state='failed'] { color:#ae3030; border-color:#ae3030; }
+.sheet-sync-panel { flex-shrink:0; display:flex; flex-wrap:wrap; align-items:center; gap:6px 18px; padding:9px 12px; margin-bottom:10px; border:1px solid var(--line); border-radius:10px; background:var(--surface); font-size:var(--caption); }
+.sheet-sync-panel>div:first-child { flex:1; min-width:220px; }
+.sheet-sync-panel strong { display:block; }
+.sheet-sync-panel span,.sheet-sync-panel small { color:var(--secondary); }
+.sheet-sync-panel small { flex-basis:100%; font-size:12px; }
+.sheet-sync-actions { display:flex; align-items:center; flex-wrap:wrap; gap:8px; }
+.sheet-sync-actions button { font-size:var(--caption); min-height:32px; padding:5px 9px; }
+.sheet-sync-actions button:disabled { opacity:.65; cursor:default; }
 .archive-group-links { display:flex; flex-wrap:wrap; gap:4px 12px; max-width:440px; }
 .archive-group-links button { padding:2px 0; font-size:var(--caption); white-space:nowrap; }
 .archive-group-links b { font-weight:500; }
