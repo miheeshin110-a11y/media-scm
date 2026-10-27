@@ -70,3 +70,13 @@ test('failed Google writes retain unsent outbox; retry uses IDs and marks the co
   const row=posted.data.find(d=>d.values[0]?.[0]==='new-b'&&d.range.startsWith("'SCM_방송'"));assert.equal(row.range,"'SCM_방송'!A3:N3");
  }finally{globalThis.fetch=original;await db.close();}
 });
+
+test('legacy child IDs reused by different broadcasts remain independent',()=>{
+ for(const title of ['SCM_PPL연결','SCM_사은품','SCM_구성실적']){
+  const existing=[['legacy-','old-b','old'],['legacy-','current-b','before']];
+  const table={title,width:3,rows:[['legacy-','current-b','after']],owns:r=>r[1]==='current-b'};
+  assert.deepEqual(apply(existing,mergeSheetRows(table,existing)),[existing[0],['legacy-','current-b','after']]);
+  const newTable={...table,rows:[['legacy-','new-b','new']],owns:r=>r[1]==='new-b'};
+  assert.deepEqual(apply(existing,mergeSheetRows(newTable,existing)),[...existing,['legacy-','new-b','new']]);
+ }
+});

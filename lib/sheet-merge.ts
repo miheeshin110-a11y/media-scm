@@ -2,6 +2,7 @@ export type SheetRow = (string | number | boolean | null)[];
 export type SheetTable = {title:string; width:number; rows:SheetRow[]; owns:(row:SheetRow)=>boolean};
 export function sheetKey(title:string,row:SheetRow){
   if(!row[0])return '';
+  if(['SCM_PPL연결','SCM_사은품','SCM_구성실적'].includes(title))return JSON.stringify([row[1],row[0]]);
   return JSON.stringify(title==='SCM_구성계획'?[row[0],row[1]]:title==='SCM_계산서연결'?[row[0],row[2]]:[row[0]]);
 }
 export function sheetColumn(n:number){let s='';for(;n;n=Math.floor((n-1)/26))s=String.fromCharCode(65+(n-1)%26)+s;return s;}
