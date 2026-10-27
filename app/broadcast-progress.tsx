@@ -1,10 +1,12 @@
 import type {Item} from '@/lib/scm-model';
-import {basicMissing,registrationLabel} from '@/lib/broadcast-progress';
+import {basicMissing} from '@/lib/broadcast-progress';
+import {BroadcastBadges} from './broadcast-picker';
+import {AlertCircle,CheckCircle2} from 'lucide-react';
 export function BroadcastProgress({item,onBasics}:{item:Item;onBasics:()=>void}){
  const missing=basicMissing(item);
  return <div className="broadcast-progress" data-incomplete={Boolean(missing.length)}>
-  <strong>{registrationLabel(item)}</strong><span>{missing.length?'기본정보 보완 필요: '+missing.join(' · '):'기본정보 입력됨 · 판매조건·목표·비용은 각 단계에서 확인하세요.'}</span>
+  <span className="broadcast-progress-status">{missing.length?<AlertCircle size={20}/>:<CheckCircle2 size={20}/>}<strong>{missing.length?'기본정보 보완 필요':'기본정보 입력됨'}</strong></span><BroadcastBadges item={item}/>
+  {missing.length>0&&<span className="broadcast-missing-chips">{missing.map(label=><span key={label}>{label} 미입력</span>)}</span>}
   {missing.length>0&&<button type="button" className="text-button" onClick={onBasics}>방송정보 이어서 입력</button>}
-  {!item.registrationSource&&<small>이전에 저장된 방송은 최초 등록 경로가 기록되어 있지 않습니다.</small>}
  </div>;
 }
