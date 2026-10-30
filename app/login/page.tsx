@@ -23,7 +23,7 @@ export default async function Login({searchParams}:{searchParams:Promise<{error?
         <p className={styles.hint}>버튼을 누른 뒤 회사 Google 계정을 선택해 주세요.</p>
         <footer className={styles.footer}>
           <LockKeyhole size={16} aria-hidden="true" />
-          <p>등록된 <strong>@days-on.kr</strong> 계정만 이용할 수 있습니다.<br />접속 권한이 필요하면 팀장에게 문의해 주세요.</p>
+          <p>사전에 등록된 <strong>회사 Google 계정</strong>으로 이용할 수 있습니다.<br />접속 권한이 필요하면 팀장에게 문의해 주세요.</p>
         </footer>
       </section>
     </main>
