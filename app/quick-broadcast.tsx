@@ -1,4 +1,5 @@
 'use client';
+import {TimeInput} from './time-input';
 import {useState} from 'react';
 import type {Item} from '@/lib/scm-model';
 import {Field} from './entry-fields';
@@ -14,6 +15,6 @@ export function QuickBroadcastForm({items,create,onCreated,onCancel}:{items:Item
  <Field label="홈쇼핑 채널"><select className="form-control" value={draft.channel} onChange={e=>put('channel',e.target.value)}><option value="">편성예정(미편성)</option>{choices(['SK','홈앤','현대','현대+','SSG','CJ','K','NS','롯데','롯데+','공영'],'channel').map(x=><option key={x}>{x}</option>)}</select></Field>
  <Field label="담당자"><select className="form-control" value={draft.owner} onChange={e=>put('owner',e.target.value)}><option value="">나중에 지정</option>{choices(['조정묵','김미정','김진희','임상민'],'owner').map(x=><option key={x}>{x}</option>)}</select></Field>
  <Field label="실제 방송일 · 미정이면 비워두세요"><input className="form-control" type="date" value={draft.date} onChange={e=>put('date',e.target.value)}/></Field>
- <Field label="실제 방송시간 · 미정이면 비워두세요"><input className="form-control" type="time" value={draft.time} onChange={e=>put('time',e.target.value)}/></Field>
+ <Field label="실제 방송시간 · 미정이면 비워두세요"><TimeInput label="실제 방송시간" value={draft.time} onChange={v=>put('time',v)}/></Field>
  </div>{error&&<p role="alert">{error}</p>}<div className="finance-actions"><button type="button" className="primary-button" disabled={pending} onClick={submit}>{pending?'방송 저장 중…':'방송 등록 후 배분 계속'}</button><button type="button" className="secondary-button" disabled={pending} onClick={onCancel}>취소</button></div><small>판매조건·목표·수량·방송비용은 방송 입력 메뉴에서 이어서 작성할 수 있습니다.</small></section>;
 }

@@ -1,4 +1,5 @@
 'use client';
+import {TimeInput} from './time-input';
 import {unifiedResult,type Item,type BroadcastResult,type SaleResult,type Gift} from '@/lib/scm-model';
 import {compositions,costPlan,costCalculation,orderCalculation,computedItem,sides,sideName} from '@/lib/workflow';
 import {BreakEvenPanel} from './break-even-panel';
@@ -11,8 +12,8 @@ export function ResultsEntry({item,step,onChange,onItemChange,items,onConditions
  const orders=orderCalculation(item);
  const applyOrders=()=>onChange(computedItem({...item,result:{...r,orderAmountMode:'auto'}}).result!);
  if(step===0)return <><Section title="방송 후 주문실적" note="전환율 적용 전 주문수량을 입력하세요. 이미 출고된 수량을 주문수량에 넣지 않습니다."/><div className="result-grid">
- <Field label="실제 방송 시작일"><input className="form-control" type="date" value={r.actualDate} onChange={e=>put('actualDate',e.target.value)}/></Field><Field label="실제 시작시간"><input className="form-control" type="time" value={r.actualStart} onChange={e=>put('actualStart',e.target.value)}/></Field>
- <Field label="실제 방송 종료일"><input className="form-control" type="date" value={r.actualEndDate} onChange={e=>put('actualEndDate',e.target.value)}/></Field><Field label="실제 종료시간"><input className="form-control" type="time" value={r.actualEnd} onChange={e=>put('actualEnd',e.target.value)}/></Field>
+ <Field label="실제 방송 시작일"><input className="form-control" type="date" value={r.actualDate} onChange={e=>put('actualDate',e.target.value)}/></Field><Field label="실제 시작시간"><TimeInput label="실제 시작시간" value={r.actualStart} onChange={v=>put('actualStart',v)}/></Field>
+ <Field label="실제 방송 종료일"><input className="form-control" type="date" value={r.actualEndDate} onChange={e=>put('actualEndDate',e.target.value)}/></Field><Field label="실제 종료시간"><TimeInput label="실제 종료시간" value={r.actualEnd} onChange={v=>put('actualEnd',v)}/></Field>
  </div><div className="result-lines">{sides.filter(s=>c[s].enabled).map(s=><section className="sale-card" key={s}><h3>{sideName(s)}</h3><div className="sale-fields"><Value label={'판매단가 · 방송입력 기준 (VAT '+c[s].vatBasis+')'} value={c[s].sellingPrice!==''?Number(c[s].sellingPrice).toLocaleString('ko-KR')+'원':'방송입력에서 판매가를 입력하세요'}/><Field label="주문수량 (세트)" hint="주문이 없으면 0 입력"><NumberInput integer value={r[s].quantity} onChange={v=>linePut(s,'quantity',v)}/></Field><Value label={'구성 주문금액 · 단가 × 수량 (VAT '+c[s].vatBasis+')'} value={show(orders.lines[s].amount,'원')}/></div></section>)}</div>
  <div className="result-grid"><Value label="총 주문금액 · 자동 (VAT 포함)" value={show(orders.gross,'원')}/><Value label="보고용 주문금액 · 자동 (VAT 제외)" value={show(orders.net,'원')}/></div>
  <p className="result-note">메인·서브 구성의 판매단가 × 주문수량을 합산합니다. 수수료·전환율은 차감하지 않습니다. 보고용 금액은 부가세 제외 기준으로 저장하며, 합계의 원 미만은 {orders.rounding==='floor'?'버림':'반올림'} 처리합니다{!p.moneyRounding?' (기본값, 방송비용에서 변경 가능)':''}.</p>

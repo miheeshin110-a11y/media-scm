@@ -1,4 +1,5 @@
 'use client';
+import {TimeInput} from './time-input';
 import {archiveMissing} from '@/lib/broadcast-archive';
 import {usesActualClock} from '@/lib/broadcast-clock';
 import {BreakEvenPanel} from './break-even-panel';
@@ -19,7 +20,7 @@ export function BroadcastEditor({form,onChange,items}:Props){
  <Field label="홈쇼핑 채널"><select className="form-control" value={form.channel} onChange={e=>onChange({...form,channel:e.target.value,status:e.target.value?form.status:''})}><option value="">편성예정(미편성)</option>{channels.map(x=><option key={x}>{x}</option>)}</select></Field>
  <Field label="방송 상태"><select className="form-control" value={form.status} onChange={e=>put('status',e.target.value)}><option value="">아직 확정 전</option><option disabled={!form.channel}>편성확정</option><option>취소</option></select></Field>
  <Field label={actual?"실제 방송일":"편성 기준일 · 기존 표기"}><input className="form-control" type="date" value={form.date} onChange={e=>put('date',e.target.value)}/></Field>
- <Field label={actual?"실제 방송시간":"편성 표기시간 · 기존 표기"} hint={actual?"00:00~23:59 입력 · 미정이면 빈칸으로 저장":"기존 24:30·25:00 표기 유지"}><input className="form-control" type={actual?"time":"text"} value={form.time} onChange={e=>put('time',e.target.value)} placeholder="예: 24:30"/></Field>
+ <Field label={actual?"실제 방송시간":"편성 표기시간 · 기존 표기"} hint={actual?"00:00~23:59 입력 · 미정이면 빈칸으로 저장":"기존 24:30·25:00 표기 유지"}>{actual?<TimeInput label="실제 방송시간" value={form.time} onChange={v=>put('time',v)}/>:<input className="form-control" value={form.time} onChange={e=>put('time',e.target.value)} placeholder="예: 24:30"/>}</Field>
  <Value label={actual?"캘린더에 표시할 실제 방송일시":"실제 방송일시 · 편성시간 환산"} value={actualDateTime(form.date,form.time)||'편성일·시간 미정'}/>
  {actual?<Value label="캘린더 표시월 · 실제 날짜 기준" value={form.date.slice(0,7)||'날짜 미정'}/>:<Field label="캘린더 표시월" hint="미입력 시 편성일의 월에 표시. 비용 귀속월과 별도"><input className="form-control" type="month" value={form.calendarMonth||''} onChange={e=>put('calendarMonth',e.target.value)}/></Field>}
  <Field label="원래 방송 · 변경/보상편성 연결"><select className="form-control" value={form.replacesId||''} onChange={e=>put('replacesId',e.target.value)}><option value="">해당 없음</option>{items.filter(x=>x.id!==form.id&&x.status==='취소').map(x=><option key={x.id} value={x.id}>{x.date} {x.time} {x.channel} {x.item}</option>)}</select></Field>
