@@ -6,7 +6,7 @@ import {masterProgram} from '@/lib/ppl-master';
 import {pplAirings,airingLabel,airingSummary,matchesPpl,pplCompanies,matchingPplAirings} from '@/lib/ppl-airings';
 
 const won=(v:string)=>Number(v||0).toLocaleString('ko-KR')+'원';
-export function PplPicker({finance,items,value,onChange,broadcastId,onCreate,canCreate=true}:{finance:Finance;items:Item[];value:string;onChange:(id:string)=>void;broadcastId:string;onCreate:()=>void;canCreate?:boolean}){
+export function PplPicker({finance,items,value,onChange,broadcastId,onCreate,canCreate=true,excludedIds=[]}:{finance:Finance;items:Item[];value:string;onChange:(id:string)=>void;broadcastId:string;onCreate:()=>void;canCreate?:boolean;excludedIds?:string[]}){
  const [open,setOpen]=useState(false),[query,setQuery]=useState('');const id=useId();
  const selected=finance.contracts.find(c=>c.id===value);
  const results=finance.contracts.filter(c=>matchesPpl(c,items,query,finance)).sort((a,b)=>{
@@ -23,8 +23,8 @@ export function PplPicker({finance,items,value,onChange,broadcastId,onCreate,can
    <p className="result-note">{results.length}건 · 날짜·시간·프로그램명 함께 검색 가능</p>
    <div className="ppl-picker-results">{results.map(c=>{
     const dates=matchingPplAirings(c,items,query,finance.allocations),companies=pplCompanies(c,items,finance),linked=finance.allocations.some(a=>a.active&&a.contractId===c.id&&a.broadcastId===broadcastId);
-    return <button type="button" key={c.id} className={value===c.id?'selected':''} aria-pressed={value===c.id} onClick={()=>{onChange(c.id);setOpen(false);setQuery('')}}>
-     <strong>{dates.length?`${dates[0].date||'방송일 미등록'} ${dates[0].time||'시간 미등록'}`:'송출일정 미등록'} · {masterProgram(c,items)||c.name}<em>{value===c.id?'선택됨':linked?'이 방송에 연결됨':''}</em></strong>
+    return <button type="button" key={c.id} disabled={excludedIds.includes(c.id)} className={value===c.id?'selected':''} aria-pressed={value===c.id} onClick={()=>{onChange(c.id);setOpen(false);setQuery('')}}>
+     <strong>{dates.length?`${dates[0].date||'방송일 미등록'} ${dates[0].time||'시간 미등록'}`:'송출일정 미등록'} · {masterProgram(c,items)||c.name}<em>{excludedIds.includes(c.id)?'다른 PPL 연결 탭에서 선택됨':value===c.id?'선택됨':linked?'이 방송에 연결됨':''}</em></strong>
      <span className="ppl-picker-dates">{dates.length?dates.slice(0,3).map(a=><span key={[a.date,a.time,a.kind].join('|')}>{airingLabel(a)}</span>):<span>방송일 미등록</span>}{dates.length>3&&<span>외 {dates.length-3}개 일정 · 선택 후 전체 확인</span>}</span>
      <small>{c.channel} · {companies.join(' / ')} · {c.code} · 총 {won(c.net)} · 잔액 {won(contractTotals(finance,c.id).remaining.net)} (부가세 별도)</small>
     </button>;
