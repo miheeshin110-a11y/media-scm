@@ -1,3 +1,5 @@
+import {after} from 'next/server';
+import {deferSheetSync} from '@/lib/sheet-sync-queue';
 import {salesCompositionChoices} from '@/lib/sales-compositions';
 import {readSyncSnapshot} from '@/lib/sync-status';
 import {broadcastClockIssues,usesActualClock} from '@/lib/broadcast-clock';
@@ -7,10 +9,11 @@ import {validateWorkflow,computedItem} from '@/lib/workflow';
 import {saveRecord,SaveConflict} from '@/lib/record-store';
 import {seedRecords} from '@/lib/seed-records';
 import {validateItem,unifiedResult,type Item} from '@/lib/scm-model';
-import {sheetsConfigured,syncRecord} from '@/lib/google-sync';
+import {sheetsConfigured} from '@/lib/google-sync';
 import {readFinance} from '@/lib/finance-store';
 import {withFinance} from '@/lib/finance-model';
 export const dynamic='force-dynamic';
+export const maxDuration=300;
 const json=(data:unknown,status=200)=>Response.json(data,{status,headers:{'Cache-Control':'no-store'}});
 async function handleGET(request:Request){
   if(!readable(request))return json({error:'로그인이 필요합니다.'},401);
@@ -64,8 +67,10 @@ async function handlePOST(request:Request){
     const bytes=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(original));
     const hash=Array.from(new Uint8Array(bytes),b=>b.toString(16).padStart(2,'0')).join('');
     const env=runtime(),saved=await saveRecord(env.DB.withSession('first-primary'),record,baseVersion,requestId,identity(request)!,hash,currentFinance.version);
-    let sync:'sent'|'pending'|'not_configured'|'failed'='pending';try{sync=await syncRecord(env,saved.id);}catch{/* Durable save succeeded; retry is safe. */}
-    return json({record:{...saved,sync:sync==='sent'?'완료':'대기'},sync,syncSnapshot:await readSyncSnapshot(env.DB)});
+    const syncSnapshot=await readSyncSnapshot(env.DB);
+    const sync=!sheetsConfigured(env)?'not_configured':syncSnapshot.records[saved.id]?.state||'pending';
+    deferSheetSync(after,env);
+    return json({record:{...saved,sync:sync==='sent'?'완료':'대기'},sync,syncSnapshot});
   }catch(error){if(error instanceof SaveConflict)return json({error:error.message},409);if(error instanceof SyntaxError||error instanceof TypeError)return json({error:'입력 형식이 올바르지 않습니다.'},400);return json({error:'저장하지 못했습니다. 입력 내용은 화면에 유지됩니다. 다시 시도해 주세요.'},500);}
 }
 
