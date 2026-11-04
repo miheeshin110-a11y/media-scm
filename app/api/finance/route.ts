@@ -9,6 +9,7 @@ import {SaveConflict} from '@/lib/record-store';
 import {seedRecords} from '@/lib/seed-records';
 import {canSaveFinance} from '@/lib/finance-access';
 import {CostHistoryError} from '@/lib/cost-history';
+import {isCatalogOnlyAction} from '@/lib/gift-items';
 export const dynamic='force-dynamic';
 export const maxDuration=300;
 const json=(body:unknown,status=200)=>Response.json(body,{status,headers:{'Cache-Control':'no-store'}});
@@ -25,7 +26,7 @@ async function handlePOST(request:Request){
   env.DB.prepare('SELECT after_payload FROM scm_revisions WHERE request_id LIKE ?').bind(requestId+':%').all<{after_payload:string}>(),
   readSyncSnapshot(env.DB),
  ]);
- if(action.kind!=='costHistory')deferSheetSync(after,env);
+ if(!isCatalogOnlyAction(action.kind))deferSheetSync(after,env);
  return json({syncSnapshot,finance,updatedRecords:rows.results.map(x=>JSON.parse(x.after_payload))});
  }catch(e){if(e instanceof SaveConflict)return json({error:e.message},409);if(e instanceof CostHistoryError)return json({error:e.message},400);if(e instanceof FinanceError||e instanceof TypeError||e instanceof SyntaxError)return json({error:e instanceof FinanceError?e.message:'입력 형식을 확인해 주세요.'},400);return json({error:'저장하지 못했습니다. 입력값을 유지한 상태에서 다시 시도해 주세요.'},500);}
 }

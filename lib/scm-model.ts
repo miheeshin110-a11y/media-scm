@@ -44,6 +44,10 @@ export function actualDateTime(date:string,time:string):string {
   const day=new Date(date+'T00:00:00Z');if(!Number.isFinite(day.getTime())||day.toISOString().slice(0,10)!==date)return '';
   day.setUTCDate(day.getUTCDate()+Math.floor(h/24));return day.toISOString().slice(0,10)+' '+String(h%24).padStart(2,'0')+':'+String(m).padStart(2,'0');
 }
+export function broadcastResultStart(item:Item){
+ const r=item.result;
+ return (r?.actualDate&&r.actualStart?actualDateTime(r.actualDate,r.actualStart):'')||actualDateTime(item.date,item.time);
+}
 export function estimateShipment(line:SaleResult):number|null {const q=numberOrNull(line.quantity),r=numberOrNull(line.conversionRate);return q===null||r===null||q<0||r<0||r>100?null:Math.floor(q*r/100);}
 export function resultMetrics(item:Item) {
   const r=unifiedResult(item.result),a=item.compositions?.single.enabled===false?0:numberOrNull(r.single.quantity),b=item.compositions?.double.enabled===false?0:numberOrNull(r.double.quantity);
@@ -85,6 +89,7 @@ export function validateItem(item:Item):string[] {
   numeric(r.profit,'이익금',{signed:true});
   for(const key of ['actualDate','actualEndDate','asOfDate'] as const)if(r[key]&&!actualDateTime(r[key],'00:00'))errors.push('결과 날짜 형식을 확인해 주세요.');
   for(const key of ['actualStart','actualEnd'] as const)if(r[key]&&!/^([01]\d|2[0-3]):[0-5]\d$/.test(r[key]))errors.push('실제 방송 시간은 00:00~23:59로 입력해 주세요.');
-  if(r.actualDate&&r.actualStart&&r.actualEndDate&&r.actualEnd&&`${r.actualEndDate} ${r.actualEnd}`<`${r.actualDate} ${r.actualStart}`)errors.push('방송 종료 일시가 시작 일시보다 빠릅니다.');
+  const start=broadcastResultStart(item);
+  if(start&&r.actualEndDate&&r.actualEnd&&`${r.actualEndDate} ${r.actualEnd}`<start)errors.push('방송 종료 일시가 시작 일시보다 빠릅니다.');
   return [...new Set(errors)];
 }

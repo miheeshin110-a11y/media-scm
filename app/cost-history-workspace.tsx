@@ -3,6 +3,7 @@ import {useState} from 'react';
 import {appendCostHistory,costItems,type CostKind} from '@/lib/cost-history';
 import type {Finance,FinanceAction} from '@/lib/finance-model';
 import {Field,NumberInput,Section} from './entry-fields';
+import {CostHistoryUpload} from './cost-history-upload';
 
 export function CostHistoryWorkspace({finance,save,busy,canManage,reload}:{finance:Finance;save:(action:FinanceAction)=>Promise<Finance|false>;busy:boolean;canManage:boolean;reload:()=>void}){
  const [kind,setKind]=useState<CostKind>('product'),[itemId,setItemId]=useState(''),[name,setName]=useState(''),[unit,setUnit]=useState('박스');
@@ -18,6 +19,7 @@ export function CostHistoryWorkspace({finance,save,busy,canManage,reload}:{finan
  };
  return <section className="cost-history-workspace">
   <Section title="상품·사은품 원가 이력" note="원가가 바뀌면 적용 시작일을 지정해 새 이력을 추가하세요. 기존 이력은 덮어쓰지 않으며 과거 방송의 원가·이익은 자동으로 바뀌지 않습니다."/>
+  <CostHistoryUpload finance={finance} save={save} busy={busy} canManage={canManage}/>
   <div className="cost-kind-tabs" role="tablist" aria-label="원가 구분">
    {(['product','gift'] as const).map(k=><button type="button" role="tab" key={k} aria-selected={kind===k} className={kind===k?'primary-button':'secondary-button'} onClick={()=>{setKind(k);setItemId('');setName('');setMessage('')}}>{k==='product'?'상품 원가':'사은품 원가'}</button>)}
    <button type="button" className="text-button" disabled={busy} onClick={reload}>최신 이력 불러오기</button>

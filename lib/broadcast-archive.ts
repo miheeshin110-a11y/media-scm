@@ -41,7 +41,7 @@ export function archiveMissing(item:Item,today:string):MissingField[]{
  const actual=actualDateTime(item.date,item.time);
  if(item.result||(actual&&actual.slice(0,10)<today)){
   const r=unifiedResult(item.result);
-  for(const [key,label] of [['actualDate','실제 시작일'],['actualStart','실제 시작시간'],['actualEndDate','실제 종료일'],['actualEnd','실제 종료시간']] as const)add('방송결과',label,r[key],0,true);
+  for(const [key,label] of [['actualEndDate','실제 종료일'],['actualEnd','실제 종료시간']] as const)add('방송결과',label,r[key],0,true);
   for(const side of sides)if(cs[side].enabled){
    add('방송결과',sideName(side)+' 주문수량',r[side].quantity,0,true,true);
    add('방송결과',sideName(side)+' 예상 전환율',r[side].conversionRate,1,true,true);

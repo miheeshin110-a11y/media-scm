@@ -1,4 +1,4 @@
-import {actualDateTime,unifiedResult,resultMetrics,type Item} from './scm-model.ts';
+import {actualDateTime,broadcastResultStart,unifiedResult,resultMetrics,type Item} from './scm-model.ts';
 import {computedItem,costCalculation} from './workflow.ts';
 import {workflowRows} from './workflow-sheets.ts';
 export const TEST_SHEET_ID='1CgPQJuFoZ0fb0xb_CzySTs2UR_VcYvznfntP46mUJJk';
@@ -12,10 +12,11 @@ export function sheetRows(item:Item,rowId:number){
   if(!Number.isSafeInteger(rowId)||rowId<1)throw new Error('Invalid sheet row');
   item=computedItem(item);
   const r=unifiedResult(item.result),m=resultMetrics(item),v=item.version||0,blank=(x:unknown)=>x??'';
+  const start=item.result?broadcastResultStart(item):'';
   const row=rowId+1,compositionRow=(rowId-1)*2+2;
   const rows=[
     {range:"'SCM_방송'!A"+row+':N'+row,values:[[item.id,v,item.date,item.time,actualDateTime(item.date,item.time),item.channel,item.item,item.owner,item.status,item.target,item.hsTarget||'',item.businessProfitTarget||'',item.updatedBy||'',item.updatedAt||'']]},
-    {range:"'SCM_방송결과'!A"+row+':O'+row,values:[[item.id,v,r.actualDate,r.actualStart,r.actualEndDate,r.actualEnd,blank(m.orderTotal),r.orderAmount,blank(m.achievement),r.profit,r.asOfDate,r.sourceRef,r.notes,item.updatedBy||'',item.updatedAt||'']]},
+    {range:"'SCM_방송결과'!A"+row+':O'+row,values:[[item.id,v,r.actualDate||start.slice(0,10),r.actualStart||start.slice(11),r.actualEndDate,r.actualEnd,blank(m.orderTotal),r.orderAmount,blank(m.achievement),r.profit,r.asOfDate,r.sourceRef,r.notes,item.updatedBy||'',item.updatedAt||'']]},
     {range:"'SCM_구성실적'!A"+compositionRow+':N'+(compositionRow+1),values:([['single','메인 구성',r.single,m.estimatedSingle],['double','서브 구성',r.double,m.estimatedDouble]] as const).map(([key,label,line,estimate])=>[item.id+'-'+key,item.id,v,label,line.quantity,line.sellingPrice,line.vatBasis,line.supplyPrice,line.commissionType,line.commission,line.conversionRate,blank(estimate),line.confirmedShipment,line.actualShipment])},
     {range:"'SCM_결과비용'!A"+row+':J'+row,values:[[item.id,v,r.pplCost,r.adCost,r.shippingCost,r.goodsCost,r.otherCost,r.guestCost,r.administrationCost,item.attribution]]},
   ];

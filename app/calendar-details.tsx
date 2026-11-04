@@ -4,7 +4,7 @@ import {X} from 'lucide-react';
 import {compositionLabel} from '@/lib/sales-compositions';
 import {partyChoices} from '@/lib/counterparties';
 import {compositions,costPlan,sides,sideName,estimated as estimate,displayChannel} from '@/lib/workflow';
-import {actualDateTime,numberOrNull,unifiedResult,resultMetrics,type Item,type SaleResult} from '@/lib/scm-model';
+import {actualDateTime,broadcastResultStart,numberOrNull,unifiedResult,resultMetrics,type Item,type SaleResult} from '@/lib/scm-model';
 import {withFinance,type Finance} from '@/lib/finance-model';
 const money=(v:string|undefined)=>format(v,'원');
 function format(v:string|undefined,unit=''){const n=numberOrNull(v);return n===null?'미입력':n.toLocaleString('ko-KR')+unit;}
@@ -31,7 +31,7 @@ export function CalendarDetails({item,day,dayItems,finance,dark,largeText,onClos
  ]}/></Section>
  <Section title="계약·비용 배분">{allocations.length?<ul className="detail-links">{allocations.map(a=>{const c=finance.contracts.find(x=>x.id===a.contractId);return <li key={a.id}><strong>{c?.name||a.contractId}</strong><span>{c?.code} · {c?.party}</span><Facts rows={[["배분 공급가액",money(a.net)],["배분 부가세",money(a.tax)],["비용 귀속월",a.month]]}/></li>})}</ul>:record.contractId||record.allocation?<Facts rows={[["등록 계약번호",text(record.contractId)],["등록 계약 공급가액",money(record.contractAmount)],["등록 배분금액",money(record.allocation)],["비용 귀속월",text(record.attribution)]]}/>:<p className="detail-empty">연결된 계약·배분이 없습니다.</p>}</Section>
  <Section title="방송결과" wide>{record.result?<><Facts rows={[
- ['기록된 실제 시작',r.actualDate&&r.actualStart?r.actualDate+' '+r.actualStart:'미입력'],['기록된 실제 종료',r.actualEndDate&&r.actualEnd?r.actualEndDate+' '+r.actualEnd:'미입력'],['실적 기준일',text(r.asOfDate)],['주문 실적',money(r.orderAmount)],['이익금',money(r.profit)],['홈쇼핑 목표 달성률',metrics?.achievement==null?'산출 전':metrics.achievement.toFixed(1)+'%']
+ ['방송 시작',broadcastResultStart(record)||'미입력'],['기록된 실제 종료',r.actualEndDate&&r.actualEnd?r.actualEndDate+' '+r.actualEnd:'미입력'],['실적 기준일',text(r.asOfDate)],['주문 실적',money(r.orderAmount)],['이익금',money(r.profit)],['홈쇼핑 목표 달성률',metrics?.achievement==null?'산출 전':metrics.achievement.toFixed(1)+'%']
  ]}/><div className="detail-table-wrap"><table className="detail-table"><caption>메인·서브 판매 및 출고 실적</caption><thead><tr><th scope="col">항목</th><th scope="col">메인 구성</th><th scope="col">서브 구성</th></tr></thead><tbody>{sales.map(([label,value])=><tr key={label}><th scope="row">{label}</th><td>{cs!.single.enabled?value(r.single):'미사용'}</td><td>{cs!.double.enabled?value(r.double):'미사용'}</td></tr>)}</tbody></table></div><h4>방송 비용</h4><Facts rows={[
  ['PPL 비용',money(r.pplCost)],['광고비',money(r.adCost)],['배송비',money(r.shippingCost)],['상품원가',money(r.goodsCost)],['출연료',money(r.guestCost)],['관리비',money(r.administrationCost)],['기타 비용',money(r.otherCost)]
  ]}/>{r.sourceRef&&<p className="detail-note"><b>결과 근거</b> {r.sourceRef}</p>}{r.notes&&<p className="detail-note"><b>메모</b> {r.notes}</p>}</>:<p className="detail-empty">방송결과가 아직 입력되지 않았습니다.</p>}</Section>

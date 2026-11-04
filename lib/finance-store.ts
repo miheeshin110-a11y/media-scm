@@ -1,4 +1,5 @@
 import {existingPplContracts} from './ppl-duplicates.ts';
+import {isCatalogOnlyAction} from './gift-items.ts';
 import type {PplLink} from './scm-model.ts';
 import {FinanceError,emptyFinance,applyFinanceAction,allocationValues,type Finance,type FinanceAction} from './finance-model.ts';
 import {SaveConflict} from './record-store.ts';
@@ -28,9 +29,9 @@ export async function saveFinance(db:DB,action:FinanceAction,baseVersion:number,
   if(origin)next.contracts[next.contracts.length-1].pplOrigin=origin;
   const attempt=crypto.randomUUID();
   const guard='EXISTS(SELECT 1 FROM scm_finance WHERE id=1 AND request_id=?)';
-  const initialState=action.kind==='costHistory'?'sent':'pending';
+  const initialState=isCatalogOnlyAction(action.kind)?'sent':'pending';
   const batch=[db.prepare("INSERT INTO scm_finance(id,payload,version,request_id,state) SELECT 1,?,?,?,'"+initialState+"' WHERE ?=0"+recordGuard+" ON CONFLICT(id) DO NOTHING").bind(JSON.stringify(next),next.version,attempt,baseVersion,...recordGuardArgs)];
-  if(baseVersion>0)batch[0]=db.prepare("UPDATE scm_finance SET payload=?,version=?,request_id=?"+(action.kind==='costHistory'?'':",state='pending'")+" WHERE id=1 AND version=?"+recordGuard).bind(JSON.stringify(next),next.version,attempt,baseVersion,...recordGuardArgs);
+  if(baseVersion>0)batch[0]=db.prepare("UPDATE scm_finance SET payload=?,version=?,request_id=?"+(isCatalogOnlyAction(action.kind)?'':",state='pending'")+" WHERE id=1 AND version=?"+recordGuard).bind(JSON.stringify(next),next.version,attempt,baseVersion,...recordGuardArgs);
   batch.push(db.prepare('INSERT INTO scm_finance_revisions(request_id,hash,actor,before_payload,after_payload,created_at) SELECT ?,?,?,?,?,?').bind(requestId,hash,actor,JSON.stringify(current),JSON.stringify(next),now).whenPreviousChanged());
   const ids=[...new Set([...current.allocations,...next.allocations].map(x=>x.broadcastId))];
   for(const id of ids){

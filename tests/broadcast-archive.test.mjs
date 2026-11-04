@@ -30,6 +30,13 @@ test('started results are checked even for future broadcasts; zero results are c
  Object.assign(x.result.single,{quantity:'0',conversionRate:'0'});
  assert.deepEqual(archiveMissing(x,today),[]);
 });
+test('result entry no longer requires duplicate start fields but still requires the actual end',()=>{
+ const x=filled();x.result=newResult();Object.assign(x.result.single,{quantity:'0',conversionRate:'0'});
+ const labels=archiveMissing(x,today).map(m=>m.label);
+ assert.ok(!labels.includes('실제 시작일'));assert.ok(!labels.includes('실제 시작시간'));
+ assert.ok(labels.includes('실제 종료일'));assert.ok(labels.includes('실제 종료시간'));
+ x.result.actualEndDate=x.date;x.result.actualEnd='11:00';assert.deepEqual(archiveMissing(x,today),[]);
+});
 test('cancelled broadcast requires only cancellation reason and is separate from entered',()=>{
  const x={...filled(),status:'취소',owner:'',cancelReason:''};
  assert.deepEqual(archiveMissing(x,today).map(m=>m.label),['취소 사유']);
