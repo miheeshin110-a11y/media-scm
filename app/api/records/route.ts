@@ -1,6 +1,7 @@
 import {after} from 'next/server';
 import {deferSheetSync} from '@/lib/sheet-sync-queue';
 import {salesCompositionChoices} from '@/lib/sales-compositions';
+import {resolveBroadcastCosts,CostHistoryError} from '@/lib/cost-history';
 import {readSyncSnapshot} from '@/lib/sync-status';
 import {broadcastClockIssues,usesActualClock} from '@/lib/broadcast-clock';
 import {authenticated} from '@/lib/runtime';
@@ -52,6 +53,7 @@ async function handlePOST(request:Request){
     if(record.workflow==='검토 완료'){record.reviewedBy=identity(request)!;record.reviewedAt=new Date().toISOString();}
     else {delete record.reviewedBy;delete record.reviewedAt;}
     if(record.replacesId){const replaced=await db.prepare('SELECT payload FROM scm_records WHERE id=?').bind(record.replacesId).first<{payload:string}>();const target:Item|undefined=replaced?JSON.parse(replaced.payload):seedRecords.find(x=>x.id===record.replacesId);if(!target||target.status!=='취소')return json({error:'취소된 원래 방송을 선택해 주세요.'},400);}
+    record=resolveBroadcastCosts(record,old,currentFinance);
     record=withFinance(record,currentFinance);
     if(record?.result)record.result=unifiedResult(record.result);
     const errors=[...validateItem(record),...validateWorkflow(record)];if(errors.length)return json({error:errors.join(' ')},400);
@@ -71,7 +73,7 @@ async function handlePOST(request:Request){
     const sync=!sheetsConfigured(env)?'not_configured':syncSnapshot.records[saved.id]?.state||'pending';
     deferSheetSync(after,env);
     return json({record:{...saved,sync:sync==='sent'?'완료':'대기'},sync,syncSnapshot});
-  }catch(error){if(error instanceof SaveConflict)return json({error:error.message},409);if(error instanceof SyntaxError||error instanceof TypeError)return json({error:'입력 형식이 올바르지 않습니다.'},400);return json({error:'저장하지 못했습니다. 입력 내용은 화면에 유지됩니다. 다시 시도해 주세요.'},500);}
+  }catch(error){if(error instanceof SaveConflict)return json({error:error.message},409);if(error instanceof CostHistoryError)return json({error:error.message},400);if(error instanceof SyntaxError||error instanceof TypeError)return json({error:'입력 형식이 올바르지 않습니다.'},400);return json({error:'저장하지 못했습니다. 입력 내용은 화면에 유지됩니다. 다시 시도해 주세요.'},500);}
 }
 
 export const GET=authenticated(handleGET);

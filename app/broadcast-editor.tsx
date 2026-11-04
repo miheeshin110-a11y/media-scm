@@ -4,6 +4,7 @@ import {archiveMissing} from '@/lib/broadcast-archive';
 import {usesActualClock} from '@/lib/broadcast-clock';
 import {BreakEvenPanel} from './break-even-panel';
 import {SalesCompositionSelect} from './sales-composition-select';
+import {CostHistoryFields} from './cost-history-fields';
 import type {Finance,FinanceAction} from '@/lib/finance-model';
 import {actualDateTime,type Item,type Composition} from '@/lib/scm-model';
 import {compositions,costPlan,supplyPrice,estimated,sides,sideName,displayChannel} from '@/lib/workflow';
@@ -32,13 +33,12 @@ export function SalesEditor({form,onChange,finance,save}:{form:Item;onChange:(it
  const cs=compositions(form);const put=(side:'single'|'double',key:keyof Composition,value:string|boolean)=>onChange({...form,compositions:{...cs,[side]:{...cs[side],[key]:value}}});
  return <><Section title="구성별 판매조건" note="판매가와 수수료율로 공급단가를 계산합니다. 구성 수량과 단위원가는 당시 적용값으로 보관합니다."/><div className="result-lines">{sides.map(side=><section className="sale-card" key={side}><h3>{sideName(side)}</h3><label className="vat-toggle"><input type="checkbox" checked={cs[side].enabled} onChange={e=>put(side,'enabled',e.target.checked)}/>이 구성 사용</label>{cs[side].enabled&&<div className="sale-fields">
  <SalesCompositionSelect value={cs[side].sku} name={cs[side].compositionName} finance={finance} save={save} onSelect={option=>onChange({...form,compositions:{...cs,[side]:{...cs[side],sku:option.code,compositionName:option.name}}})}/>
- <Field label="세트당 상품 수량 (박스/개)" hint="단위원가와 같은 단위 사용"><NumberInput integer value={cs[side].units} onChange={v=>put(side,'units',v)}/></Field>
+ <Field label={`세트당 상품 수량 (${cs[side].costSnapshot?.unit||'박스/개'})`} hint="단위원가와 같은 단위 사용"><NumberInput integer value={cs[side].units} onChange={v=>put(side,'units',v)}/></Field>
  <Field label="판매가 (원)"><NumberInput value={cs[side].sellingPrice} onChange={v=>put(side,'sellingPrice',v)}/></Field>
  <Field label="판매가 부가세 기준"><select className="form-control" value={cs[side].vatBasis} onChange={e=>put(side,'vatBasis',e.target.value)}><option>포함</option><option>별도</option></select></Field>
  <Field label="판매수수료율 (%)"><NumberInput value={cs[side].commission} onChange={v=>put(side,'commission',v)}/></Field>
  <Value label="공급단가 · 자동 (원)" value={show(supplyPrice(cs[side]))}/>
- <Field label="상품 단위원가 (원, VAT 제외)"><NumberInput value={cs[side].unitCost} onChange={v=>put(side,'unitCost',v)}/></Field>
- <Field label="원가 기준일"><input className="form-control" type="date" value={cs[side].costDate} onChange={e=>put(side,'costDate',e.target.value)}/></Field>
+ <CostHistoryFields kind="product" value={cs[side]} finance={finance} referenceDate={form.date} onChange={patch=>onChange({...form,compositions:{...cs,[side]:{...cs[side],...patch,costDate:patch.costDate??cs[side].costDate}}})}/>
  </div>}</section>)}</div></>;
 }
 export function PlanEditor({form,onChange}:{form:Item;onChange:(item:Item)=>void}){

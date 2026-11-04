@@ -1,4 +1,5 @@
 import {duplicatePplErrors} from './ppl-duplicates.ts';
+import {appliedUnitCost} from './cost-history.ts';
 import {actualDateTime,numberOrNull,unifiedResult,type Item,type Composition,type CostPlan,type PplLink} from './scm-model.ts';
 export const reviewStates=['작성 중','검토 요청','보완 요청','검토 완료'] as const;
 export const sides=['single','double'] as const;
@@ -32,13 +33,13 @@ export function orderCalculation(item:Item){
 export function costCalculation(item:Item){
  const c=compositions(item),p=costPlan(item),r=unifiedResult(item.result);
  const shipments=Object.fromEntries(sides.map(side=>[side,c[side].enabled?estimated(r[side].quantity,r[side].conversionRate,p.quantityRounding):0])) as Record<'single'|'double',number|null>;
- const grossGoods=sumKnown(sides.map(side=>{if(!c[side].enabled||shipments[side]===0)return 0;const unit=numberOrNull(c[side].unitCost),units=numberOrNull(c[side].units);return shipments[side]===null||unit===null||units===null?null:shipments[side]!*unit*units;}));
+ const grossGoods=sumKnown(sides.map(side=>{if(!c[side].enabled||shipments[side]===0)return 0;const unit=numberOrNull(appliedUnitCost(c[side])),units=numberOrNull(c[side].units);return shipments[side]===null||unit===null||units===null?null:shipments[side]!*unit*units;}));
  const netSales=sumKnown(sides.map(side=>{if(!c[side].enabled||shipments[side]===0)return 0;const price=supplyPrice(c[side]);return shipments[side]===null||price===null?null:shipments[side]!*price;}));
  const shipmentTotal=sumKnown(Object.values(shipments));
  const shippingCount=p.shippingBasis==='sets'?shipmentTotal:p.shippingBasis==='manual'?numberOrNull(p.shippingCount):null;
  const shippingRate=numberOrNull(p.shippingRate);
  const grossShipping=shippingCount===0?0:shippingCount===null||shippingRate===null?null:shippingCount*shippingRate;
- const gifts=(item.gifts||[]).map(g=>{const q=g.side==='both'?shipmentTotal:shipments[g.side],units=numberOrNull(g.units),unit=numberOrNull(g.unitCost);return !g.item?null:q===0?0:q===null||q===undefined||units===null||unit===null?null:q*units*unit;});
+ const gifts=(item.gifts||[]).map(g=>{const q=g.side==='both'?shipmentTotal:shipments[g.side],units=numberOrNull(g.units),unit=numberOrNull(appliedUnitCost(g));return !g.item?null:q===0?0:q===null||q===undefined||units===null||unit===null?null:q*units*unit;});
  const round=(n:number|null)=>n===null?null:rounded(n,p.moneyRounding);
  const goodsCost=round(grossGoods),shippingCost=round(grossShipping),giftCost=round(sumKnown(gifts)),revenue=round(netSales);
  const pplCost=item.ppl==='없음'?0:numberOrNull(item.allocationManaged?item.allocation:r.pplCost||item.allocation);

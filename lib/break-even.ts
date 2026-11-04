@@ -1,4 +1,5 @@
 import {numberOrNull,newResult,type Item} from './scm-model.ts';
+import {appliedUnitCost} from './cost-history.ts';
 import {compositions,costPlan,costCalculation,estimated,orderCalculation,supplyPrice} from './workflow.ts';
 
 export type BreakEven={status:'ready'|'missing'|'unreachable'|'limit';issues:string[];orders:number|null;shipments:number|null;net:number|null;gross:number|null;profit:number|null;contribution:number|null;fixed:number|null;rate:number|null};
@@ -13,7 +14,7 @@ export function mainBreakEven(item:Item):BreakEven{
  read(main.commission,'메인 수수료율',100);
  if(!['포함','별도'].includes(main.vatBasis))issues.push('메인 판매가 부가세 기준');
  const units=read(main.units,'메인 세트당 상품수량',1e9);if(units===0||!Number.isInteger(units))issues.push('메인 세트당 상품수량은 1 이상의 정수');
- const unitCost=read(main.unitCost,'메인 상품 단위원가');
+ const unitCost=read(appliedUnitCost(main),'메인 상품 단위원가');
  const rate=read(main.conversionRate,'메인 계획 예상 전환율',100);
  const shipping=read(p.shippingRate,'배송단가');
  if(p.shippingBasis!=='sets')issues.push('BEP 배송 기준: 예상출고 1세트 = 배송 1건 (별도 입력 배송 건수로는 주문 증가에 따른 배송비 계산 불가)');
@@ -31,7 +32,7 @@ export function mainBreakEven(item:Item):BreakEven{
   if(!g.item.trim())issues.push(`메인 사은품 ${i+1} 아이템`);
   const count=read(g.units,`메인 사은품 ${i+1} 지급수량`,1e9);
   if(!Number.isInteger(count))issues.push(`메인 사은품 ${i+1} 지급수량은 정수`);
-  giftPerSet+=count*read(g.unitCost,`메인 사은품 ${i+1} 단위원가`);
+  giftPerSet+=count*read(appliedUnitCost(g),`메인 사은품 ${i+1} 단위원가`);
  }
  if(issues.length)return {...out,issues:[...new Set(issues)]};
  const supply=supplyPrice(main)!,contribution=supply-unitCost*units-shipping-giftPerSet;
