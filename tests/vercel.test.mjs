@@ -14,6 +14,13 @@ test('verified Google identities are explicitly allowlisted and roles remain sep
  assert.equal(roleForEmail('stranger@days-on.kr',true,config),null);
  assert.equal(roleForEmail('mihee@days-on.kr',true,{}),null);
  assert.equal(roleForEmail('mihee@days-on.kr',true,{SCM_REVIEWER_EMAILS:'broken'}),null);
+ const expanded={...config,SCM_ADDITIONAL_REVIEWER_EMAILS:'["mijung@days-on.kr"]'};
+ assert.equal(roleForEmail('mijung@days-on.kr',true,expanded),'reviewer');
+ assert.equal(roleForEmail('MIJUNG@days-on.kr',true,expanded),'reviewer');
+ assert.equal(roleForEmail('mihee@days-on.kr',true,expanded),'reviewer');
+ assert.equal(roleForEmail('mijung@days-on.kr',false,expanded),null);
+ assert.equal(roleForEmail('stranger@days-on.kr',true,expanded),null);
+ assert.equal(roleForEmail('mijung@days-on.kr',true,{...config,SCM_ADDITIONAL_REVIEWER_EMAILS:'broken'}),null);
 });
 const item=()=>({id:'TEST-0001',date:'2026-09-30',time:'25:00',channel:'SK',item:'테스트',shortItem:'테스트',owner:'검증',status:'계획',urgent:false,ppl:'없음',program:'',pplKind:'',price:'',target:'300000',rate:'',contractId:'',contractAmount:'',allocation:'',attribution:'',sync:'대기',hsTarget:'200000',businessProfitTarget:'10000'});
 test('PostgreSQL transaction preserves CAS, request replay, outbox and rollback',async()=>{

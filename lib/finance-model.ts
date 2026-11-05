@@ -1,4 +1,5 @@
 import {applyLogisticsAction,type Logistics} from './logistics.ts';
+import {applyLogisticsWorkbook} from './logistics-workbook.ts';
 import {salesCompositionChoices,compositionKey,type SalesComposition} from './sales-compositions.ts';
 import {appendCostHistory,type CostHistory} from './cost-history.ts';
 import {importCostHistory} from './cost-history-import.ts';
@@ -52,7 +53,7 @@ export function applyFinanceAction(current:Finance,action:FinanceAction,broadcas
   const identity=(kind:'contract'|'allocation'|'invoice',existing?:{id:string;code:string})=>existing?{id:existing.id,code:existing.code}:{id:uuid(),code:(kind==='contract'?'PPL-'+now.slice(0,4):kind==='invoice'?'INV-'+now.slice(0,4):'ALLOC')+'-'+String(f.next[kind]++).padStart(kind==='allocation'?6:4,'0')};
   const selectedParty=()=>{const n=business(str(d,'businessNo',true));const p=partyChoices(f).find(x=>x.id===(d.partyId||partyId(n)));if(!p||p.businessNo!==n)throw new FinanceError('사업자등록번호가 확인된 거래처를 목록에서 선택해 주세요.');return {partyId:p.id,party:p.name,businessNo:p.businessNo};};
   if(action.kind==='logistics'){
-    f.logistics=applyLogisticsAction(f.logistics,d,context?.items||[],context?.actor||'unknown',now,uuid);
+    f.logistics=d.op==='workbook'?applyLogisticsWorkbook(f,d.workbook,context?.items||[],context?.actor||'unknown',now,uuid):applyLogisticsAction(f.logistics,d,context?.items||[],context?.actor||'unknown',now,uuid);
   }else if(action.kind==='giftItem'){
     f.giftItems=registerGiftItem(f,d,uuid);
   }else if(action.kind==='costHistoryImport'){
