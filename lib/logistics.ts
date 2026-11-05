@@ -129,22 +129,23 @@ export function applyLogisticsAction(current:Logistics|undefined,d:Record<string
  return l;
 }
 
-export type ForecastRow={warehouse:string;sku:string;broadcastId:string;revision:number;date:string;dueDate:string;quantity:number;remaining:number|null;shortage:number|null;lateInbound:number;notice:string};
-export function logisticsForecast(l:Logistics,warehouse:string):ForecastRow[]{
+export type ForecastPlan=Pick<LogisticsRelease,'broadcastId'|'warehouse'|'revision'|'date'|'time'|'dueDate'|'cancelled'>&{requirements:(Omit<Requirement,'quantity'>&{quantity:number|null})[]};
+export type ForecastRow={warehouse:string;sku:string;broadcastId:string;revision:number;date:string;dueDate:string;quantity:number|null;remaining:number|null;shortage:number|null;lateInbound:number;notice:string};
+export function logisticsForecast(l:Logistics,warehouse:string,scenario?:ForecastPlan[]):ForecastRow[]{
  const snapshot=l.snapshots.filter(s=>s.warehouse===warehouse).at(-1);if(!snapshot)return [];
- const releases=[...new Map(l.releases.map(r=>[r.broadcastId,r])).values()].filter(r=>r.warehouse===warehouse&&!r.cancelled&&(r.date+'T'+r.time)>=snapshot.asOf).sort((a,b)=>(a.date+a.time+a.broadcastId).localeCompare(b.date+b.time+b.broadcastId));
- const balances=new Map(snapshot.lines.map(r=>[r.sku,r.available+r.reservedForPlans])),used=new Set<string>(),out:ForecastRow[]=[];
+ const releases=(scenario||[...new Map(l.releases.map(r=>[r.broadcastId,r])).values()]).filter(r=>r.warehouse===warehouse&&!r.cancelled&&(r.date+'T'+r.time)>=snapshot.asOf).sort((a,b)=>(a.date+a.time+a.broadcastId).localeCompare(b.date+b.time+b.broadcastId));
+ const balances=new Map<string,number|null>(snapshot.lines.map(r=>[r.sku,r.available+r.reservedForPlans])),used=new Set<string>(),out:ForecastRow[]=[];
  for(const release of releases){
   // Preparation deadlines are seven days before broadcast; overdue plans need stock now.
   const cutoff=release.dueDate<snapshot.asOf.slice(0,10)?snapshot.asOf.slice(0,10):release.dueDate;
-  const needs=new Map<string,number>();for(const r of release.requirements)needs.set(r.sku,total(needs.get(r.sku)||0,r.quantity));
+  const needs=new Map<string,number|null>();for(const r of release.requirements){const previous=needs.get(r.sku);needs.set(r.sku,previous===null||r.quantity===null?null:total(previous||0,r.quantity));}
   for(const [sku,quantity] of needs){
    const incoming=l.inbounds.filter(i=>i.warehouse===warehouse&&i.sku===sku&&i.confirmed&&i.date>snapshot.asOf.slice(0,10));
    let balance=balances.get(sku);
-   for(const i of incoming.filter(i=>i.date<=cutoff&&!used.has(i.id))){if(balance!==undefined)balance=total(balance,i.quantity);used.add(i.id);}
+   for(const i of incoming.filter(i=>i.date<=cutoff&&!used.has(i.id))){if(balance!==undefined&&balance!==null)balance=total(balance,i.quantity);used.add(i.id);}
    const lateInbound=incoming.filter(i=>i.date>cutoff&&i.date<=release.date).reduce((n,i)=>total(n,i.quantity),0);
-   const remaining=balance===undefined?null:balance-quantity;if(remaining!==null)balances.set(sku,remaining);
-   out.push({warehouse,sku,broadcastId:release.broadcastId,revision:release.revision,date:release.date,dueDate:release.dueDate,quantity,remaining,shortage:remaining===null?null:Math.max(0,-remaining),lateInbound,notice:remaining===null?'재고 미등록':release.dueDate<snapshot.asOf.slice(0,10)?'준비기한 경과 · 실제 준비 확인 필요':''});
+   const remaining=balance===undefined||balance===null||quantity===null?null:balance-quantity;balances.set(sku,remaining);
+   out.push({warehouse,sku,broadcastId:release.broadcastId,revision:release.revision,date:release.date,dueDate:release.dueDate,quantity,remaining,shortage:remaining===null?null:Math.max(0,-remaining),lateInbound,notice:quantity===null?'필요수량 미확인':remaining===null?(balance===undefined?'재고 미등록':'이전 방송 수량·재고 미확인'):release.dueDate<snapshot.asOf.slice(0,10)?'준비기한 경과 · 실제 준비 확인 필요':''});
   }
  }
  return out;
