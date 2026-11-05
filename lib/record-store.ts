@@ -1,3 +1,4 @@
+import {logisticsQueueStatement} from './logistics-sheet-job.ts';
 import {duplicatePplErrors} from './ppl-duplicates.ts';
 import type {Item} from './scm-model';
 export class SaveConflict extends Error {}
@@ -21,6 +22,7 @@ export async function saveRecord(db:DB,record:Item,baseVersion:number,requestId:
     mutation,
     db.prepare('INSERT INTO scm_revisions(request_id,record_id,version,actor,request_hash,before_payload,after_payload,created_at) SELECT ?,?,?,?,?,?,?,?').bind(requestId,record.id,version,actor,requestHash,existing?.payload||null,payload,now).whenPreviousChanged(),
     db.prepare("INSERT INTO scm_outbox(record_id,version,state,updated_at) SELECT record_id,version,'pending',created_at FROM scm_revisions WHERE request_id=? ON CONFLICT(record_id) DO UPDATE SET version=excluded.version,state='pending',last_error=NULL,updated_at=excluded.updated_at WHERE scm_outbox.version<excluded.version").bind(requestId),
+    logisticsQueueStatement(db,'EXISTS(SELECT 1 FROM scm_revisions WHERE request_id=?)',[requestId],now).whenPreviousChanged(),
   ]);
   const saved=await db.prepare('SELECT request_hash,actor,after_payload FROM scm_revisions WHERE request_id=?').bind(requestId).first<{request_hash:string;actor:string;after_payload:string}>();
   if(!saved||saved.request_hash!==requestHash||saved.actor!==actor)throw new SaveConflict('저장 충돌이 발생했습니다. 최신 내용을 불러와 주세요.');

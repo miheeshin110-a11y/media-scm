@@ -1,9 +1,10 @@
+import {logisticsSheetHeaders} from './logistics-sheets.ts';
 import {sheetHeaders} from './sheet-mapping.ts';
 import {workflowHeaders} from './workflow-sheets.ts';
 import {financeSheetHeaders} from './finance-sheets.ts';
 type Range={range:string;values:unknown[][]};
 type Metadata={sheets:{properties:{sheetId:number;title:string;gridProperties:{rowCount:number;columnCount:number}}}[]};
-export const allSheetHeaders={...sheetHeaders,...workflowHeaders,...financeSheetHeaders};
+export const allSheetHeaders={...sheetHeaders,...workflowHeaders,...financeSheetHeaders,...logisticsSheetHeaders};
 export function headerRows(names:string[]){return [...new Set(names)].map(name=>({range:`'${name}'!A1`,values:[Array.from(allSheetHeaders[name as keyof typeof allSheetHeaders])]}));}
 // Only app-owned tabs are prepared. Existing source/test worksheets are not modified.
 export async function ensureSheetRanges(token:string,sheetId:string,ranges:Range[]){
@@ -16,7 +17,7 @@ export async function ensureSheetRanges(token:string,sheetId:string,ranges:Range
  }
  for(const data of combined.values()){const match=data.range.match(/^'([^']+)'!([A-Z]+)(\d+)(?::([A-Z]+)(\d+))?$/)!;
  const title=match[1],rows=Number(match[5]||match[3]),columns=Array.from(match[4]||match[2]).reduce((n,c)=>n*26+c.charCodeAt(0)-64,0),existing=metadata.sheets.find(s=>s.properties.title===title)?.properties;
- if(!existing)requests.push({addSheet:{properties:{title,gridProperties:{rowCount:Math.max(1001,rows),columnCount:Math.max(26,columns)}}}});
+ if(!existing)requests.push({addSheet:{properties:{title,...(title in logisticsSheetHeaders?{hidden:title!=='물류 종합'}:{}),gridProperties:{rowCount:Math.max(1001,rows),columnCount:Math.max(26,columns),...(title in logisticsSheetHeaders?{frozenRowCount:1}:{})}}}});
  else if(existing.gridProperties.rowCount<rows||existing.gridProperties.columnCount<columns)requests.push({updateSheetProperties:{properties:{sheetId:existing.sheetId,gridProperties:{rowCount:Math.max(rows,existing.gridProperties.rowCount),columnCount:Math.max(columns,existing.gridProperties.columnCount)}},fields:'gridProperties.rowCount,gridProperties.columnCount'}});
  }
  if(requests.length){const update=await fetch(url+':batchUpdate',{method:'POST',headers,body:JSON.stringify({requests}),signal:AbortSignal.timeout(15000)});if(!update.ok)throw new Error('Google 시트 준비 실패 ('+update.status+'). 대기 건을 다시 전송해 주세요.');}

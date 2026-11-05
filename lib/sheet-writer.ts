@@ -25,6 +25,9 @@ export async function writeMergedSheets(token:string,sheetId:string,tables:Sheet
   if(snapshot.valueRanges?.length!==tables.length)throw new Error('Google 시트 읽기 범위를 확인해 주세요.');
   const data=tables.flatMap((t,i)=>mergeSheetRows(t,snapshot.valueRanges[i].values||[]));
   if(data.length)await ensureSheetRanges(token,sheetId,data);
-  const result=await fetch(url+'/values:batchUpdate',{method:'POST',headers,body:JSON.stringify({valueInputOption:'RAW',data:[...headerRows,...data]}),signal:AbortSignal.timeout(15000)});
-  if(!result.ok)throw new Error('Google 시트 반영 실패 ('+result.status+')');
+  const writes=[...headerRows,...data];
+  let chunk:typeof writes=[],size=0;
+  const send=async()=>{if(!chunk.length)return;const result=await fetch(url+'/values:batchUpdate',{method:'POST',headers,body:JSON.stringify({valueInputOption:'RAW',data:chunk}),signal:AbortSignal.timeout(15000)});if(!result.ok)throw new Error('Google 시트 반영 실패 ('+result.status+')');chunk=[];size=0;};
+  for(const row of writes){const length=JSON.stringify(row).length;if(chunk.length>=300||size+length>750000)await send();chunk.push(row);size+=length;}
+  await send();
 }

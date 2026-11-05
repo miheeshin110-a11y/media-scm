@@ -1,5 +1,7 @@
 import {readFinance} from './finance-store.ts';
-import {withFinance} from './finance-model.ts';
+import {withFinance,emptyFinance,type Finance} from './finance-model.ts';
+import {logisticsTables} from './logistics-sheets.ts';
+import {ensureLogisticsDashboard} from './logistics-sheet-view.ts';
 import type {ScmEnv} from './runtime';
 import type {Item} from './scm-model';
 import {TEST_SHEET_ID} from './sheet-mapping.ts';
@@ -52,4 +54,31 @@ export async function syncFinance(env:ScmEnv):Promise<SyncState>{
   })??'pending';
  }catch{await db.prepare("UPDATE scm_finance SET state='failed' WHERE id=1 AND lease_token=?").bind(lease).run();return 'failed';}
  finally{await db.prepare('UPDATE scm_finance SET lease_token=NULL,lease_until=NULL WHERE id=1 AND lease_token=?').bind(lease).run();}
+}
+
+export async function syncLogistics(env:ScmEnv):Promise<SyncState>{
+ if(!sheetsConfigured(env))return 'not_configured';
+ const db=env.DB,lease=crypto.randomUUID(),now=Date.now();
+ const acquired=await db.prepare("UPDATE scm_sheet_jobs SET lease_token=?,lease_until=? WHERE job_key='logistics' AND state!='sent' AND (lease_until IS NULL OR lease_until<?)").bind(lease,now+300000,now).run();
+ if(!acquired.meta.changes){const row=await db.prepare("SELECT state FROM scm_sheet_jobs WHERE job_key='logistics'").first<{state:string}>();return row?.state==='sent'?'sent':'pending';}
+ let generation:number|undefined;
+ try{
+  return await withSheetWriteLock<SyncState>(db,async locked=>{
+   // One SQL snapshot binds source broadcasts, master data and queue generation together.
+   const source=await locked.prepare("SELECT j.generation,f.payload,f.version AS finance_version,COALESCE((SELECT json_agg(json_build_object('payload',r.payload,'version',r.version)) FROM scm_records r),'[]'::json) AS records FROM scm_sheet_jobs j LEFT JOIN scm_finance f ON f.id=1 WHERE j.job_key='logistics' AND j.lease_token=?").bind(lease).first<{generation:number;payload:string|null;finance_version:number|null;records:{payload:string;version:number}[]}>();
+   if(!source)throw new Error('Google 물류 전송 대기열을 확인해 주세요.');
+   generation=source.generation;
+   const finance:Finance=source.payload?{...JSON.parse(source.payload),version:source.finance_version??0}:emptyFinance();
+   const records=source.records.map(r=>({...JSON.parse(r.payload),version:r.version} as Item));
+   const token=await accessToken(env);
+   await writeMergedSheets(token,TEST_SHEET_ID,logisticsTables(finance,records));
+   await ensureLogisticsDashboard(token,TEST_SHEET_ID);
+   const done=await locked.prepare("UPDATE scm_sheet_jobs SET state='sent',last_error=NULL WHERE job_key='logistics' AND generation=? AND lease_token=?").bind(generation,lease).run();
+   return done.meta.changes?'sent':'pending';
+  })??'pending';
+ }catch(error){
+  const message=error instanceof Error&&error.message.startsWith('Google ')?error.message:'물류 원데이터 전송에 실패했습니다. 자료를 확인한 뒤 다시 전송하세요.';
+  if(generation!==undefined)await db.prepare("UPDATE scm_sheet_jobs SET state='failed',last_error=? WHERE job_key='logistics' AND generation=? AND lease_token=?").bind(message,generation,lease).run();
+  return 'failed';
+ }finally{await db.prepare("UPDATE scm_sheet_jobs SET lease_token=NULL,lease_until=NULL WHERE job_key='logistics' AND lease_token=?").bind(lease).run();}
 }

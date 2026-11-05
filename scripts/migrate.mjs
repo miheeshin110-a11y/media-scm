@@ -8,7 +8,7 @@ try {
  await db.query('BEGIN');
  await db.query('SELECT pg_advisory_xact_lock(736267, 1)');
  await db.query('CREATE TABLE IF NOT EXISTS scm_migrations (name TEXT PRIMARY KEY, checksum TEXT NOT NULL, applied_at TIMESTAMPTZ NOT NULL DEFAULT now())');
- for(const name of ['0001_initial.sql']){
+ for(const name of ['0001_initial.sql','0002_logistics_sheet_job.sql']){
   const sql=await readFile(new URL('../migrations/postgres/'+name,import.meta.url),'utf8');
   const checksum=createHash('sha256').update(sql).digest('hex');
   const found=await db.query('SELECT checksum FROM scm_migrations WHERE name=$1',[name]);

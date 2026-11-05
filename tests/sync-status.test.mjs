@@ -15,9 +15,9 @@ test('unknown state never claims completion and a newer unsent version remains p
  assert.equal(recordSheetState(null,{id:'a',version:1}),'unknown');
 });
 test('authoritative DB snapshot preserves failure and detects an older sent outbox version',async()=>{
- const db={prepare(sql){return {async all(){assert.match(sql,/LEFT JOIN scm_outbox/);return {results:[{id:'a',version:2,outbox_version:1,state:'sent'},{id:'b',version:3,outbox_version:3,state:'failed'},{id:'c',version:1,outbox_version:1,state:'sent'}]};},async first(){assert.match(sql,/scm_finance/);return {state:'pending'};}};}};
+ const db={prepare(sql){return {async all(){assert.match(sql,/LEFT JOIN scm_outbox/);return {results:[{id:'a',version:2,outbox_version:1,state:'sent'},{id:'b',version:3,outbox_version:3,state:'failed'},{id:'c',version:1,outbox_version:1,state:'sent'}]};},async first(){if(sql.includes("scm_sheet_jobs"))return null;assert.match(sql,/scm_finance/);return {state:'pending'};}};}};
  const s=await readSyncSnapshot(db);
- assert.deepEqual(s,{records:{a:{version:2,state:'pending'},b:{version:3,state:'failed'},c:{version:1,state:'sent'}},finance:'pending'});
+ assert.deepEqual(s,{records:{a:{version:2,state:'pending'},b:{version:3,state:'failed'},c:{version:1,state:'sent'}},finance:'pending',logistics:null});
  assert.equal(syncCounts(s).remaining,3);
  // Successful retry clears the queue; no always-active retransmit button is needed.
  for(const r of Object.values(s.records))r.state='sent';s.finance='sent';

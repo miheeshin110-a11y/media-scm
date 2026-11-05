@@ -1,3 +1,4 @@
+import {logisticsQueueStatement} from './logistics-sheet-job.ts';
 import {existingPplContracts} from './ppl-duplicates.ts';
 import {isCatalogOnlyAction} from './gift-items.ts';
 import type {PplLink} from './scm-model.ts';
@@ -39,11 +40,13 @@ export async function saveFinance(db:DB,action:FinanceAction,baseVersion:number,
   const batch=[db.prepare("INSERT INTO scm_finance(id,payload,version,request_id,state) SELECT 1,?,?,?,'"+initialState+"' WHERE ?=0"+recordGuard+" ON CONFLICT(id) DO NOTHING").bind(JSON.stringify(next),next.version,attempt,baseVersion,...recordGuardArgs)];
   if(baseVersion>0)batch[0]=db.prepare("UPDATE scm_finance SET payload=?,version=?,request_id=?"+(isCatalogOnlyAction(action.kind)?'':",state='pending'")+" WHERE id=1 AND version=?"+recordGuard).bind(JSON.stringify(next),next.version,attempt,baseVersion,...recordGuardArgs);
   batch.push(db.prepare('INSERT INTO scm_finance_revisions(request_id,hash,actor,before_payload,after_payload,created_at) SELECT ?,?,?,?,?,?').bind(requestId,hash,actor,JSON.stringify(current),JSON.stringify(next),now).whenPreviousChanged());
+  let logisticsDirty=action.kind==='logistics';
   const ids=[...new Set([...current.allocations,...next.allocations].map(x=>x.broadcastId))];
   for(const id of ids){
     const old=allocationValues(current,id),a=allocationValues(next,id);
     const masterChanged=action.kind==='contract'&&next.allocations.some(a=>a.active&&a.broadcastId===id&&a.contractId===action.data.id);
     if(JSON.stringify(old)===JSON.stringify(a)&&!masterChanged)continue;
+    logisticsDirty=true;
     const seed=seeds.find(x=>x.id===id);
     if(seed)batch.push(db.prepare('INSERT INTO scm_records(id,payload,version,updated_at,updated_by) SELECT ?,?,0,?,? WHERE '+guard+' ON CONFLICT(id) DO NOTHING').bind(id,JSON.stringify(seed),now,actor,attempt));
     // SQL derives from the latest row inside the transaction, preserving concurrent edits.
@@ -54,6 +57,7 @@ export async function saveFinance(db:DB,action:FinanceAction,baseVersion:number,
     batch.push(db.prepare('UPDATE scm_records SET payload=(SELECT after_payload FROM scm_revisions WHERE request_id=?),version=version+1,updated_at=?,updated_by=? WHERE id=? AND '+guard).bind(requestId+':'+id,now,actor,id,attempt));
     batch.push(db.prepare("INSERT INTO scm_outbox(record_id,version,state,updated_at) SELECT id,version,'pending',? FROM scm_records WHERE id=? AND "+guard+" ON CONFLICT(record_id) DO UPDATE SET version=excluded.version,state='pending',last_error=NULL,updated_at=excluded.updated_at").bind(now,id,attempt));
   }
+  if(logisticsDirty)batch.push(logisticsQueueStatement(db,guard,[attempt],now));
   await db.batch(batch);
   const receipt=await db.prepare('SELECT hash,actor,after_payload FROM scm_finance_revisions WHERE request_id=?').bind(requestId).first<{hash:string;actor:string;after_payload:string}>();
   if(!receipt||receipt.hash!==hash||receipt.actor!==actor)throw new SaveConflict('다른 변경이 먼저 저장됐습니다. 최신 자료를 불러와 주세요.');

@@ -32,6 +32,7 @@ function googleMock({fail=false,writes=[]}={}){
   if(url.includes('?fields='))return Response.json({sheets:Object.keys(allSheetHeaders).map((title,i)=>({properties:{sheetId:i,title,gridProperties:{rowCount:10000,columnCount:100}}}))});
   if(url.includes('values:batchGet'))return Response.json({valueRanges:new URL(url).searchParams.getAll('ranges').map(()=>({values:[]}))});
   if(url.includes('values:batchUpdate')){writes.push(JSON.parse(options.body));return Response.json({});}
+  if(url.endsWith(':batchUpdate'))return Response.json({});
   throw Error('Unexpected Google call');
  };
 }
@@ -47,7 +48,8 @@ test('consecutive broadcast saves return before Google work and the worker expor
   assert.equal(response.status,200,await response.clone().text());body=await response.json();assert.equal(body.record.version,2);assert.equal(calls,0);assert.equal(callbacks.length,2);
   globalThis.fetch=googleMock({writes});for(const work of callbacks)await work();
   const outbox=await db.prepare('SELECT state,version FROM scm_outbox').first();assert.deepEqual(outbox,{state:'sent',version:2});
-  assert.equal(writes.length,1,'older callbacks coalesce to one current-version write');
+  assert.equal(writes.filter(w=>w.data.some(r=>r.range.startsWith("'SCM_방송'"))).length,1,'older callbacks coalesce to one current-version broadcast write');
+  assert.equal((await db.prepare("SELECT state FROM scm_sheet_jobs").first()).state,'sent');
   assert.equal(JSON.parse((await db.prepare('SELECT payload FROM scm_records').first()).payload).target,'500000');
  }finally{globalThis.fetch=original;await db.close();}
 });
