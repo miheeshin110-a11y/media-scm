@@ -5,19 +5,20 @@ import {usesActualClock} from '@/lib/broadcast-clock';
 import {BreakEvenPanel} from './break-even-panel';
 import {SalesCompositionSelect} from './sales-composition-select';
 import {CostHistoryFields} from './cost-history-fields';
+import {costItems} from '@/lib/cost-history';
 import {PlanSummary} from './plan-summary';
 import type {Finance,FinanceAction} from '@/lib/finance-model';
 import {actualDateTime,type Item,type Composition} from '@/lib/scm-model';
 import {compositions,costPlan,supplyPrice,estimated,sides,sideName,displayChannel} from '@/lib/workflow';
 export {PplEditor} from './ppl-editor';
 import {Field,NumberInput,Value,Section,show} from './entry-fields';
-type Props={form:Item;onChange:(item:Item)=>void;items:Item[]};
-export function BroadcastEditor({form,onChange,items}:Props){
+type Props={form:Item;onChange:(item:Item)=>void;items:Item[];finance:Finance};
+export function BroadcastEditor({form,onChange,items,finance}:Props){
  const put=(k:keyof Item,v:unknown)=>onChange({...form,[k]:v});
  const actual=usesActualClock(items.find(x=>x.id===form.id));
  const channels=[...new Set(['SK','홈앤','현대','현대+','SSG','CJ','K','NS','롯데','롯데+','공영',...items.map(x=>x.channel)].filter(Boolean))];
  return <><Section title="방송 기본정보" note="아는 내용부터 입력하고 부분 저장하세요. 홈쇼핑 미편성 상태에서도 등록할 수 있습니다."/><div className="result-grid">
- <Field label="표준 아이템"><select className="form-control" value={form.item} onChange={e=>onChange({...form,item:e.target.value,shortItem:e.target.value})}><option value="">선택</option>{[...new Set(['파라다이스','아세로라','프리바이오틱스','알파시클로덱스트린',...items.map(x=>x.item),form.item].filter(Boolean))].map(x=><option key={x}>{x}</option>)}</select></Field>
+ <Field label="표준 아이템" hint={!form.id?"상품 선택 시 방송일에 유효한 원가를 자동 적용합니다. 이력이 없으면 원가는 미입력으로 남습니다.":undefined}><select className="form-control" value={form.item} onChange={e=>onChange({...form,item:e.target.value,shortItem:e.target.value})}><option value="">선택</option>{[...new Set(['파라다이스','아세로라','프리바이오틱스','알파시클로덱스트린',...costItems(finance,'product').map(c=>c.name),...items.map(x=>x.item),form.item].filter(Boolean))].map(x=><option key={x}>{x}</option>)}</select></Field>
  <Field label="담당자"><select className="form-control" value={form.owner} onChange={e=>put('owner',e.target.value)}><option value="">선택</option>{[...new Set(['조정묵','김미정','김진희','임상민',...items.map(x=>x.owner),form.owner].filter(Boolean))].map(x=><option key={x}>{x}</option>)}</select></Field>
  <Field label="홈쇼핑 채널"><select className="form-control" value={form.channel} onChange={e=>onChange({...form,channel:e.target.value,status:e.target.value?form.status:''})}><option value="">편성예정(미편성)</option>{channels.map(x=><option key={x}>{x}</option>)}</select></Field>
  <Field label="방송 상태"><select className="form-control" value={form.status} onChange={e=>put('status',e.target.value)}><option value="">아직 확정 전</option><option disabled={!form.channel}>편성확정</option><option>취소</option></select></Field>

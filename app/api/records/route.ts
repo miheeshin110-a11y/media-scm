@@ -2,6 +2,7 @@ import {after} from 'next/server';
 import {deferSheetSync} from '@/lib/sheet-sync-queue';
 import {salesCompositionChoices} from '@/lib/sales-compositions';
 import {resolveBroadcastCosts,CostHistoryError} from '@/lib/cost-history';
+import {automaticProductCost} from '@/lib/automatic-product-cost';
 import {readSyncSnapshot} from '@/lib/sync-status';
 import {broadcastClockIssues,usesActualClock} from '@/lib/broadcast-clock';
 import {authenticated} from '@/lib/runtime';
@@ -53,7 +54,7 @@ async function handlePOST(request:Request){
     if(record.workflow==='검토 완료'){record.reviewedBy=identity(request)!;record.reviewedAt=new Date().toISOString();}
     else {delete record.reviewedBy;delete record.reviewedAt;}
     if(record.replacesId){const replaced=await db.prepare('SELECT payload FROM scm_records WHERE id=?').bind(record.replacesId).first<{payload:string}>();const target:Item|undefined=replaced?JSON.parse(replaced.payload):seedRecords.find(x=>x.id===record.replacesId);if(!target||target.status!=='취소')return json({error:'취소된 원래 방송을 선택해 주세요.'},400);}
-    record=resolveBroadcastCosts(record,old,currentFinance);
+    record=resolveBroadcastCosts(automaticProductCost(record,old,currentFinance),old,currentFinance);
     record=withFinance(record,currentFinance);
     if(record?.result)record.result=unifiedResult(record.result);
     const errors=[...validateItem(record),...validateWorkflow(record)];if(errors.length)return json({error:errors.join(' ')},400);
