@@ -1,3 +1,4 @@
+import {applyLogisticsAction,type Logistics} from './logistics.ts';
 import {salesCompositionChoices,compositionKey,type SalesComposition} from './sales-compositions.ts';
 import {appendCostHistory,type CostHistory} from './cost-history.ts';
 import {importCostHistory} from './cost-history-import.ts';
@@ -26,8 +27,8 @@ export type Contract=Money&AgencyTerms&{invoiceApprovals?:string[];airings?:PplA
 export type Allocation=Money&{airing?:PplAiring;id:string;code:string;contractId:string;broadcastId:string;month:string;active:boolean};
 export type InvoiceLink=Money&{contractId:string};
 export type Invoice=Money&{id:string;code:string;party:string;businessNo:string;partyId?:string;date:string;approvalNo:string;notes:string;active:boolean;links:InvoiceLink[];linkTaxMode?:'auto'};
-export type Finance={version:number;giftItems?:GiftItem[];costHistory?:CostHistory[];salesCompositions?:SalesComposition[];taxImports?:TaxInvoice[];programs?:{id:string;channel:string;name:string}[];parties?:Party[];contracts:Contract[];allocations:Allocation[];invoices:Invoice[];next:{contract:number;allocation:number;invoice:number}};
-export type FinanceAction={kind:'giftItem'|'costHistoryImport'|'costHistory'|'salesComposition'|'invoiceRefs'|'taxImport'|'program'|'party'|'contract'|'allocation'|'allocations'|'invoice'|'voidAllocation'|'voidInvoice';data:Record<string,unknown>};
+export type Finance={version:number;logistics?:Logistics;giftItems?:GiftItem[];costHistory?:CostHistory[];salesCompositions?:SalesComposition[];taxImports?:TaxInvoice[];programs?:{id:string;channel:string;name:string}[];parties?:Party[];contracts:Contract[];allocations:Allocation[];invoices:Invoice[];next:{contract:number;allocation:number;invoice:number}};
+export type FinanceAction={kind:'logistics'|'giftItem'|'costHistoryImport'|'costHistory'|'salesComposition'|'invoiceRefs'|'taxImport'|'program'|'party'|'contract'|'allocation'|'allocations'|'invoice'|'voidAllocation'|'voidInvoice';data:Record<string,unknown>};
 export const emptyFinance=():Finance=>({version:0,contracts:[],allocations:[],invoices:[],next:{contract:1,allocation:1,invoice:1}});
 export class FinanceError extends Error{}
 export const amount=(v:string)=>Number(v||0);
@@ -45,12 +46,14 @@ function allocationAiring(d:Record<string,unknown>,old?:Allocation):{airing?:Ppl
  if((date&&!actualDateTime(date,'00:00'))||(time&&!actualDateTime(date||'2026-01-01',time))||(kind&&!['본방','재방','스페셜'].includes(kind))||(originalDate&&!actualDateTime(originalDate,'00:00'))||(date&&originalDate&&originalDate>date))throw new FinanceError('PPL 방송일·시간·송출구분과 원본 본방일을 확인해 주세요.');
  return {airing:{...(typeof a.id==='string'?{id:a.id}:{}),date,time,kind,originalDate}};
 }
-export function applyFinanceAction(current:Finance,action:FinanceAction,broadcastIds:Set<string>,now=new Date().toISOString(),uuid=()=>crypto.randomUUID()):Finance{
+export function applyFinanceAction(current:Finance,action:FinanceAction,broadcastIds:Set<string>,now=new Date().toISOString(),uuid=()=>crypto.randomUUID(),context?:{items:Item[];actor:string}):Finance{
   const f:Finance=structuredClone(current),d=action.data;if(!d||typeof d!=='object')throw new FinanceError('입력 내용을 확인해 주세요.');
   const id=typeof d.id==='string'?d.id:'';
   const identity=(kind:'contract'|'allocation'|'invoice',existing?:{id:string;code:string})=>existing?{id:existing.id,code:existing.code}:{id:uuid(),code:(kind==='contract'?'PPL-'+now.slice(0,4):kind==='invoice'?'INV-'+now.slice(0,4):'ALLOC')+'-'+String(f.next[kind]++).padStart(kind==='allocation'?6:4,'0')};
   const selectedParty=()=>{const n=business(str(d,'businessNo',true));const p=partyChoices(f).find(x=>x.id===(d.partyId||partyId(n)));if(!p||p.businessNo!==n)throw new FinanceError('사업자등록번호가 확인된 거래처를 목록에서 선택해 주세요.');return {partyId:p.id,party:p.name,businessNo:p.businessNo};};
-  if(action.kind==='giftItem'){
+  if(action.kind==='logistics'){
+    f.logistics=applyLogisticsAction(f.logistics,d,context?.items||[],context?.actor||'unknown',now,uuid);
+  }else if(action.kind==='giftItem'){
     f.giftItems=registerGiftItem(f,d,uuid);
   }else if(action.kind==='costHistoryImport'){
     f.costHistory=importCostHistory(f,d.rows,now,uuid);

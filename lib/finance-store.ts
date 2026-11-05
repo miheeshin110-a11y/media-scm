@@ -25,7 +25,13 @@ export async function saveFinance(db:DB,action:FinanceAction,baseVersion:number,
     recordGuard=' AND EXISTS(SELECT 1 FROM scm_records WHERE id=? AND version=?)';recordGuardArgs=[ctx.broadcastId,ctx.version];
   }
   const saved=await db.prepare('SELECT id FROM scm_records').all<{id:string}>();
-  const next=applyFinanceAction(current,action,new Set([...seeds.map(x=>x.id),...saved.results.map(x=>x.id)])),now=new Date().toISOString();
+  const logisticsRows=action.kind==='logistics'?(await db.prepare('SELECT id,payload,version FROM scm_records').all<{id:string;payload:string;version:number}>()).results:[];
+  if(action.kind==='logistics'&&['publish','ack','status'].includes(String(action.data.op))){
+    const target=logisticsRows.find(r=>r.id===action.data.broadcastId);
+    if(!target)throw new FinanceError('저장된 방송을 다시 선택해 주세요.');
+    recordGuard=' AND EXISTS(SELECT 1 FROM scm_records WHERE id=? AND version=?)';recordGuardArgs=[target.id,target.version];
+  }
+  const next=applyFinanceAction(current,action,new Set([...seeds.map(x=>x.id),...saved.results.map(x=>x.id)]),new Date().toISOString(),()=>crypto.randomUUID(),{items:logisticsRows.map(r=>JSON.parse(r.payload) as Item),actor}),now=new Date().toISOString();
   if(origin)next.contracts[next.contracts.length-1].pplOrigin=origin;
   const attempt=crypto.randomUUID();
   const guard='EXISTS(SELECT 1 FROM scm_finance WHERE id=1 AND request_id=?)';

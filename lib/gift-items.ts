@@ -5,7 +5,7 @@ import type {Item,Gift} from './scm-model.ts';
 export type GiftItem={id:string;name:string};
 export type GiftMaster={giftItems?:GiftItem[];costHistory?:CostHistory[]};
 export const giftNameKey=(name:string)=>name.normalize('NFKC').replace(/\s+/g,'').toLocaleLowerCase('ko');
-export const isCatalogOnlyAction=(kind:string)=>['costHistory','costHistoryImport','giftItem'].includes(kind);
+export const isCatalogOnlyAction=(kind:string)=>['costHistory','costHistoryImport','giftItem','logistics'].includes(kind);
 export function giftItemChoices(master:GiftMaster,items:Item[]=[]){
  const names=[...costItemCatalog.map(c=>c.name),...(master.giftItems||[]).map(g=>g.name),...(master.costHistory||[]).filter(h=>h.kind==='gift').map(h=>h.name),...items.map(i=>i.item),...items.flatMap(i=>(i.gifts||[]).map(g=>g.item))];
  const unique=new Map<string,string>();
