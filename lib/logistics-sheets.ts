@@ -8,6 +8,8 @@ import type {Finance} from './finance-model.ts';
 import type {SheetTable,SheetRow} from './sheet-merge.ts';
 
 export const logisticsSheetHeaders={
+ SCM_물류단품구성:['동기화키','구성수량ID','세트코드','판매구성명','단품코드','단품명','구분','세트당단품수량','단위','적용시작 방송일','등록시각','등록자','물류 자료 버전'],
+ SCM_물류단품예상:['동기화키','방송ID','방송일','단품코드','단품명','구분','단위','준비기준수량','예상출고수량','확인사항','방송 버전','물류 자료 버전'],
  SCM_물류방송:['동기화키','방송ID','방송 버전','물류 자료 버전','방송일','방송시간','방송채널','방송상품','요청수량(세트)','예상출고(세트)','물류상태','다음할일','준비기한','준비창고','SCM담당자','입력확인','준비요청ID','준비요청버전','SCM확인시각','처리상태','취소여부','변경확인필요','방송수정시각'],
  SCM_물류구성계획:['동기화키','방송ID','메인서브','판매구성코드','판매구성명','요청수량(세트)','예상전환율(%)','수량처리기준','예상출고(세트)','구성표ID','방송 버전','물류 자료 버전'],
  SCM_물류수량:['동기화키','방송ID','물류상품코드','품목명','구분','단위','재고준비수량','예상출고수량','방송일','방송 버전','물류 자료 버전'],
@@ -34,7 +36,9 @@ export function logisticsTables(finance:Finance,items:Item[]):SheetTable[]{
   data['물류 종합'].push([id('view',item.id),day,time,item.channel,item.item,t.action,t.status,o.dueDate,value(o.requestedSets),value(o.expectedSets),r?.warehouse||'',r?.owner||'',o.issues.join(' · '),r?.revision??'',item.id,version,v]);
   for(const line of o.lines)data.SCM_물류구성계획.push([id('composition',item.id,line.side),item.id,line.side==='single'?'메인':'서브',line.sku,cs[line.side].compositionName||compositionName(line.sku),value(line.requested),value(line.rate),rounding,value(line.expected),latestBom(l,line.sku,o.date||item.date)?.id||'',version,v]);
   for(const row of o.requirements)data.SCM_물류수량.push([id('quantity',item.id,row.sku,row.role),item.id,row.sku,skuName(row.sku),row.role==='gift'?'사은품':'본품',logisticsUnit(l,row.sku),value(row.prepare),value(row.expected),day,version,v]);
+  for(const row of o.componentRequirements)data.SCM_물류단품예상.push([id('component-expected',item.id,row.sku,row.role,row.unit),item.id,day,row.sku,row.name,row.role==='gift'?'사은품':'본품',row.unit,value(row.prepare),value(row.expected),o.componentIssues.join(' · '),version,v]);
  }
+ for(const contents of l.setContents||[])for(const row of contents.lines)data.SCM_물류단품구성.push([id('set-content',contents.id,row.sku),contents.id,contents.compositionCode,compositionName(contents.compositionCode),row.sku,row.name,row.role==='gift'?'사은품':'본품',row.quantity,row.unit,contents.effectiveFrom,contents.createdAt,contents.actor,v]);
  for(const sku of l.skus)data.SCM_물류상품.push([id('sku',sku.code),sku.code,sku.name,sku.unit||'EA',v]);
  for(const bom of l.boms)for(const row of bom.lines)data.SCM_물류구성표.push([id('bom',bom.id,row.sku,row.role),bom.id,bom.compositionCode,compositionName(bom.compositionCode),row.sku,skuName(row.sku),row.role==='gift'?'사은품':'본품',row.quantity,logisticsUnit(l,row.sku),bom.createdAt,bom.correctedAt?'오등록 정정':latestBom(l,bom.compositionCode)?.id===bom.id?'최신':'이전',v,bom.effectiveFrom||'',bom.shipmentMode==='set'?'완제품 세트':'개별 품목',bom.sourceConfigId||'']);
  for(const snapshot of l.snapshots)for(const row of snapshot.lines)data.SCM_물류재고.push([id('stock',snapshot.id,row.sku),snapshot.id,snapshot.warehouse,snapshot.asOf,row.sku,skuName(row.sku),row.available,row.reservedForPlans,row.available+row.reservedForPlans,snapshot.basis==='before-plans'?'이번 계획 예약 차감 전':'이번 계획 예약 차감 후',logisticsUnit(l,row.sku),snapshot.source,snapshot.createdAt,l.snapshots.filter(s=>s.warehouse===snapshot.warehouse).at(-1)?.id===snapshot.id?'최신':'이전',v]);

@@ -10,7 +10,7 @@ export type Inbound={id:string;sku:string;warehouse:string;date:string;quantity:
 export type Requirement={sku:string;role:'product'|'gift';quantity:number};
 export type LogisticsRelease={id:string;broadcastId:string;warehouse:string;revision:number;fingerprint:string;date:string;time:string;channel:string;item:string;urgent:boolean;dueDate:string;cancelled:boolean;requirements:Requirement[];bomIds:string[];createdAt:string;actor:string;note:string;acknowledgedAt?:string;acknowledgedBy?:string;state:'미확인'|'준비 중'|'부족 확인'|'준비 완료'|'취소';owner:string;processingNote:string};
 export type LogisticsEvent={id:string;releaseId:string;at:string;actor:string;type:string;note:string};
-export type Logistics={skus:LogisticsSku[];boms:LogisticsBom[];snapshots:InventorySnapshot[];inbounds:Inbound[];releases:LogisticsRelease[];events:LogisticsEvent[]};
+export type Logistics={skus:LogisticsSku[];boms:LogisticsBom[];snapshots:InventorySnapshot[];inbounds:Inbound[];releases:LogisticsRelease[];events:LogisticsEvent[];setContents?:import('./set-contents.ts').SetContents[]};
 export class LogisticsError extends Error{}
 export const emptyLogistics=():Logistics=>({skus:[],boms:[],snapshots:[],inbounds:[],releases:[],events:[]});
 const text=(v:unknown,label:string,max=120)=>{if(typeof v!=='string'||!v.trim()||v.trim().length>max)throw new LogisticsError(label+'을 확인해 주세요.');return v.trim();};

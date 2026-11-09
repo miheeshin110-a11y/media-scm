@@ -1,13 +1,14 @@
 import {actualDateTime,type Item} from './scm-model.ts';
 import {compositions,costPlan,estimated} from './workflow.ts';
 import {latestBom,latestRelease,logisticsForecast,preparationDate,type Logistics,type ForecastPlan,type Requirement} from './logistics.ts';
+import {latestSetContents,type SetComponent} from './set-contents.ts';
 
 export type OutlookRequirement=Omit<Requirement,'quantity'>&{prepare:number|null;expected:number|null};
 const count=(s:string)=>/^\d+$/.test(s)&&Number.isSafeInteger(Number(s))&&Number(s)<=1e12?Number(s):null;
 const add=(a:number|null,b:number|null)=>a===null||b===null||!Number.isSafeInteger(a+b)||a+b>1e15?null:a+b;
 const multiply=(a:number|null,b:number)=>a===null||!Number.isSafeInteger(a*b)||a*b>1e15?null:a*b;
 export function logisticsOutlook(item:Item,l:Logistics){
- const c=compositions(item),rounding=costPlan(item).quantityRounding,issues:string[]=[],requirements:OutlookRequirement[]=[];
+ const c=compositions(item),rounding=costPlan(item).quantityRounding,issues:string[]=[],requirements:OutlookRequirement[]=[],componentIssues:string[]=[],componentRequirements:(SetComponent&{prepare:number|null;expected:number|null})[]=[];
  const real=actualDateTime(item.date,item.time),cancelled=item.status==='취소';
  if(!real)issues.push('방송 일정 미확정');
  const lines=(['single','double'] as const).filter(side=>c[side].enabled&&!cancelled).map(side=>{
@@ -20,6 +21,16 @@ export function logisticsOutlook(item:Item,l:Logistics){
   if(rate===null&&requested!==0)issues.push(label+' 예상 전환율 미입력');
   if(!rounding&&requested!==0&&rate!==0)issues.push(label+' 수량 소수점 처리 미선택');
   if(!bom)issues.push(label+' 물류 구성표 미등록');
+  if(bom?.shipmentMode==='set'){
+   const contents=latestSetContents(l,line.sku,real.slice(0,10));
+   if(!contents)componentIssues.push(label+' '+line.sku+' · 상품·사은품 구성수량 확인 필요');
+   for(const component of contents?.lines||[]){
+    const perOrder=multiply(bom.lines[0].quantity,component.quantity),prepare=perOrder===null?null:multiply(requested,perOrder),expected=perOrder===null?null:multiply(safeExpected,perOrder);
+    const old=componentRequirements.find(r=>r.sku===component.sku&&r.role===component.role&&r.unit===component.unit);
+    if(old){old.prepare=add(old.prepare,prepare);old.expected=add(old.expected,expected);}else componentRequirements.push({...component,prepare,expected});
+    if(perOrder===null||(requested!==null&&prepare===null)||(safeExpected!==null&&expected===null))componentIssues.push(label+' 단품수량 계산 한도 초과');
+   }
+  }
   for(const component of bom?.lines||[]){
    const prepare=multiply(requested,component.quantity),expected=multiply(safeExpected,component.quantity),old=requirements.find(r=>r.sku===component.sku&&r.role===component.role);
    if(old){old.prepare=add(old.prepare,prepare);old.expected=add(old.expected,expected);}else requirements.push({sku:component.sku,role:component.role,prepare,expected});
@@ -28,7 +39,7 @@ export function logisticsOutlook(item:Item,l:Logistics){
  });
  if(!lines.length&&!cancelled)issues.push('사용하는 판매구성 없음');
  const requestedSets=lines.reduce<number|null>((n,line)=>add(n,line.requested),0),expectedSets=lines.reduce<number|null>((n,line)=>add(n,line.expected),0);
- return {lines,requirements,requestedSets:!lines.length&&!cancelled?null:requestedSets,expectedSets:!lines.length&&!cancelled?null:expectedSets,issues,date:real.slice(0,10),time:real.slice(11),dueDate:real?preparationDate(real.slice(0,10)):'',cancelled};
+ return {lines,requirements,componentRequirements,componentIssues,requestedSets:!lines.length&&!cancelled?null:requestedSets,expectedSets:!lines.length&&!cancelled?null:expectedSets,issues,date:real.slice(0,10),time:real.slice(11),dueDate:real?preparationDate(real.slice(0,10)):'',cancelled};
 }
 
 // A read-only scenario. Never inserts releases, confirms a plan or reserves WMS stock.

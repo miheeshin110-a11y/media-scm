@@ -38,6 +38,7 @@ export function logisticsTask(item:Item,l:Logistics){
  if(!outlook.lines.length||outlook.lines.some(r=>!r.sku))return task(2,'판매구성 확인 필요','broadcast','판매구성 확인','방송팀 입력에서 사용할 판매구성을 선택해주세요.',2);
  if(outlook.lines.some(r=>r.requested===null))return task(2,'요청수량 확인 필요','broadcast','요청수량 확인','방송팀의 목표·수량 입력을 확인해주세요. 빈칸을 0으로 계산하지 않습니다.',3);
  if(outlook.lines.some(r=>!r.mapped))return task(2,'상품 구성 확인 필요','mapping','준비할 상품 확인','이 판매구성에 들어가는 본품·사은품과 단품 수량을 한 번 연결해주세요.');
+ if(outlook.componentIssues.length)return task(2,'구성수량 확인 필요','mapping','상품·사은품 수량 연결','세트에 포함된 상품·사은품 수량을 물류팀에서 확인하고 구성수량 파일로 연결해주세요.');
  if(!release)return task(1,'새 방송 확인 필요','review','방송 확인·준비 요청','방송팀이 입력한 일정과 준비수량을 확인하고 준비할 창고를 지정해주세요.');
  if(release.state==='준비 완료')return task(5,'준비 완료','done','준비 내역 보기','담당자가 실제 준비 완료를 기록했습니다.');
  if(!snapshot)return task(3,'재고 확인 필요','inventory','재고 자료 확인','이 창고의 최근 재고 자료를 확인해주세요.');

@@ -16,7 +16,7 @@ const item=()=>{const b={id:'log-sheet',date:'2026-11-20',time:'10:00',channel:'
 
 test('logistics export preserves financial snapshots and distinguishes unknown EA from explicit zero sets',()=>{
  const b=item(),f=emptyFinance(),before=structuredClone({b,f}),tables=logisticsTables(f,[b]);
- assert.equal(tables.length,12);
+ assert.equal(tables.length,14);
  for(const table of tables){assert.equal(table.width,logisticsSheetHeaders[table.title].length);for(const row of table.rows){assert.equal(row.length,table.width);assert.ok(row[0].startsWith(LOGISTICS_ROW_PREFIX));}}
  const row=tables.find(t=>t.title==='SCM_물류방송').rows[0];assert.equal(row[8],0);assert.equal(row[9],0);
  b.compositions.single.plannedQuantity='';const blank=logisticsTables(f,[b]).find(t=>t.title==='SCM_물류방송').rows[0];assert.equal(blank[8],'');assert.equal(blank[9],'');
