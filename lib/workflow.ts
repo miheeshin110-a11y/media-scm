@@ -10,6 +10,10 @@ export function compositions(item:Item){
  return item.compositions||{single:make('single'),double:make('double')};
 }
 export function costPlan(item:Item):CostPlan{return item.costPlan||{adCost:item.result?.adCost||'',guestCost:item.result?.guestCost||'',administrationCost:item.result?.administrationCost||'0',otherCost:item.result?.otherCost||'',shippingRate:'',shippingBasis:'',shippingCount:'',quantityRounding:'',moneyRounding:'',pplProcessingMonth:''};}
+export function initializeShipping(item:Item,previous?:Item):Item{
+ if(previous)return item;
+ const p=costPlan(item);return {...item,costPlan:{...p,shippingBasis:p.shippingBasis||'sets'}};
+}
 export function editingItem(item:Item):Item{return {...item,workflow:item.workflow||'작성 중',status:item.status==='취소'?'취소':item.status==='편성확정'||item.status==='방송완료'?'편성확정':'',compositions:compositions(item),costPlan:costPlan(item),shortItem:item.item};}
 export function linksOf(item:Item):PplLink[]{return item.pplLinks?.length?item.pplLinks:item.ppl==='있음'?[{id:'legacy-'+item.id,pplId:'',program:item.program,kind:item.pplKind,date:'',time:'',channel:''}]:[];}
 export function rounded(value:number,mode:string):number|null{return mode==='floor'?Math.floor(value):mode==='round'?Math.round(value):null;}
@@ -42,7 +46,7 @@ export function costCalculation(item:Item){
  const gifts=(item.gifts||[]).map(g=>{const q=g.side==='both'?shipmentTotal:shipments[g.side],units=numberOrNull(g.units),unit=numberOrNull(appliedUnitCost(g));return !g.item?null:q===0?0:q===null||q===undefined||units===null||unit===null?null:q*units*unit;});
  const round=(n:number|null)=>n===null?null:rounded(n,p.moneyRounding);
  const goodsCost=round(grossGoods),shippingCost=round(grossShipping),giftCost=round(sumKnown(gifts)),revenue=round(netSales);
- const pplCost=item.ppl==='없음'?0:numberOrNull(item.allocationManaged?item.allocation:r.pplCost||item.allocation);
+ const pplCost=item.ppl==='없음'?0:numberOrNull(item.allocationManaged?(item.pplBroadcastCost??item.allocation):r.pplCost||item.allocation);
  const totalCost=sumKnown([goodsCost,shippingCost,giftCost,pplCost,...[p.adCost,p.guestCost,p.administrationCost,p.otherCost].map(numberOrNull)]);
  return {shipments,shipmentTotal,shippingCount,goodsCost,shippingCost,giftCost,revenue,pplCost,totalCost,profit:revenue===null||totalCost===null?null:revenue-totalCost};
 }

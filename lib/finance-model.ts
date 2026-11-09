@@ -13,6 +13,7 @@ import {pplAirings} from './ppl-airings.ts';
 import type {PplAiring} from './ppl-airings.ts';
 import {allocatedPpl} from './ppl-master.ts';
 import {computedItem} from './workflow.ts';
+import {broadcastCostParts} from './ppl-broadcast-cost.ts';
 import {partyChoices,partyId,contractChannels,ownBusinessNo,type Party} from './counterparties.ts';
 import {normalizeApproval,approvalValid,mergeTaxInvoices,type TaxInvoice} from './tax-reconcile.ts';
 export type Money={net:string;tax:string;taxMode?:'auto'|'manual'};
@@ -25,7 +26,7 @@ export function proportionalTaxes(total:Money,nets:string[]):string[]{
  return nets.map(n=>{used+=BigInt(n);const next=base===BigInt(0)?BigInt(0):used*tax/base;const part=next-previous;previous=next;return String(part)});
 }
 export type Contract=Money&AgencyTerms&{invoiceApprovals?:string[];airings?:PplAiring[];program?:string;pplOrigin?:{broadcastId:string;link:PplLink};id:string;code:string;name:string;party:string;businessNo:string;partyId?:string;channel:string;approvalNo:string;date:string;notes:string};
-export type Allocation=Money&{airing?:PplAiring;id:string;code:string;contractId:string;broadcastId:string;month:string;active:boolean};
+export type Allocation=Money&{broadcastCost?:string;agencyFee?:string;airing?:PplAiring;id:string;code:string;contractId:string;broadcastId:string;month:string;active:boolean};
 export type InvoiceLink=Money&{contractId:string};
 export type Invoice=Money&{id:string;code:string;party:string;businessNo:string;partyId?:string;date:string;approvalNo:string;notes:string;active:boolean;links:InvoiceLink[];linkTaxMode?:'auto'};
 export type Finance={version:number;logistics?:Logistics;giftItems?:GiftItem[];costHistory?:CostHistory[];salesCompositions?:SalesComposition[];taxImports?:TaxInvoice[];programs?:{id:string;channel:string;name:string}[];parties?:Party[];contracts:Contract[];allocations:Allocation[];invoices:Invoice[];next:{contract:number;allocation:number;invoice:number}};
@@ -162,6 +163,16 @@ export function applyFinanceAction(current:Finance,action:FinanceAction,broadcas
     }
   }
   const changedContracts=action.kind==='contract'?[f.contracts.find(c=>c.id===id)?.id||f.contracts[f.contracts.length-1]?.id]:action.kind==='allocations'?[String(d.contractId)]:action.kind==='allocation'?[String(d.contractId),current.allocations.find(a=>a.id===id)?.contractId]:action.kind==='voidAllocation'?[current.allocations.find(a=>a.id===id)?.contractId]:[];
+  // No backfill: unchanged existing allocations retain their saved cost basis.
+  if(action.kind==='allocation'||action.kind==='allocations')for(const contractId of new Set(changedContracts)){
+    const c=f.contracts.find(c=>c.id===contractId);if(!c)continue;
+    const rows=f.allocations.filter(a=>a.active&&a.contractId===contractId),parts=broadcastCostParts(c,rows.map(a=>a.net));
+    rows.forEach((a,i)=>{const old=current.allocations.find(x=>x.id===a.id);
+      const changed=!old||old.net!==a.net||old.contractId!==a.contractId||old.broadcastId!==a.broadcastId;
+      if((changed||old?.broadcastCost!==undefined)&&parts[i]){a.broadcastCost=parts[i]!.cost;a.agencyFee=parts[i]!.fee;}
+      else {delete a.broadcastCost;delete a.agencyFee;}
+    });
+  }
   for(const contractId of new Set(changedContracts)){const c=f.contracts.find(x=>x.id===contractId);if(!c)continue;const rows=f.allocations.filter(a=>a.active&&a.contractId===c.id),taxes=proportionalTaxes(c,rows.map(a=>a.net));rows.forEach((a,i)=>{a.tax=taxes[i];a.taxMode='auto'});}
   for(const inv of f.invoices.filter(x=>x.active))for(const link of inv.links){const c=f.contracts.find(x=>x.id===link.contractId);if(!c||!c.businessNo||c.businessNo!==inv.businessNo)throw new FinanceError('세금계산서와 계약 거래처의 사업자등록번호가 같아야 합니다.');}
   for(const c of f.contracts){const t=contractTotals(f,c.id);if(amount(t.remaining.net)<0||amount(t.remaining.tax)<0)throw new FinanceError(c.code+': 방송 배분금액이 계약의 공급가액 또는 부가세를 초과합니다.');if(amount(t.invoiceGap.net)<0||amount(t.invoiceGap.tax)<0)throw new FinanceError(c.code+': 계산서 연결금액이 계약의 공급가액 또는 부가세를 초과합니다.');}
@@ -169,5 +180,5 @@ export function applyFinanceAction(current:Finance,action:FinanceAction,broadcas
   for(const broadcastId of new Set(f.allocations.filter(a=>a.active).map(a=>a.broadcastId)))if(f.allocations.filter(a=>a.active&&a.broadcastId===broadcastId).length>20)throw new FinanceError('한 방송에는 PPL을 20건까지 연결할 수 있습니다.');
   f.version++;return f;
 }
-export function allocationValues(f:Finance,id:string){const rows=f.allocations.filter(x=>x.active&&x.broadcastId===id),contracts=f.contracts.filter(c=>rows.some(a=>a.contractId===c.id));return {airings:rows.map(r=>({id:r.id,contractId:r.contractId,airing:r.airing})),net:sumMoney(rows).net,tax:sumMoney(rows).tax,codes:contracts.map(c=>c.code).join(', '),contractNet:sumMoney(contracts).net,month:new Set(rows.map(x=>x.month)).size===1?rows[0].month:'',managed:f.allocations.some(x=>x.broadcastId===id)};}
-export function withFinance(item:Item,f:Finance):Item{item=allocatedPpl(item,f);const a=allocationValues(f,item.id);if(!a.managed)return computedItem({...item,financeVersion:f.version});return computedItem({...item,financeVersion:f.version,allocationManaged:true,allocation:a.net,contractId:a.codes,contractAmount:a.contractNet,attribution:a.month,...(item.result?{result:{...item.result,pplCost:a.net}}:{})});}
+export function allocationValues(f:Finance,id:string){const rows=f.allocations.filter(x=>x.active&&x.broadcastId===id),contracts=f.contracts.filter(c=>rows.some(a=>a.contractId===c.id));return {airings:rows.map(r=>({id:r.id,contractId:r.contractId,airing:r.airing})),net:sumMoney(rows).net,costNet:String(rows.reduce((sum,a)=>sum+amount(a.broadcastCost??a.net),0)),tax:sumMoney(rows).tax,codes:contracts.map(c=>c.code).join(', '),contractNet:sumMoney(contracts).net,month:new Set(rows.map(x=>x.month)).size===1?rows[0].month:'',managed:f.allocations.some(x=>x.broadcastId===id)};}
+export function withFinance(item:Item,f:Finance):Item{item=allocatedPpl(item,f);const a=allocationValues(f,item.id);if(!a.managed)return computedItem({...item,financeVersion:f.version});return computedItem({...item,financeVersion:f.version,allocationManaged:true,allocation:a.net,pplBroadcastCost:a.costNet,contractId:a.codes,contractAmount:a.contractNet,attribution:a.month,...(item.result?{result:{...item.result,pplCost:a.costNet}}:{})});}

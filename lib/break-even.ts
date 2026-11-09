@@ -23,7 +23,7 @@ export function mainBreakEven(item:Item):BreakEven{
  let fixed=0;
  for(const [k,label] of [['adCost','홈쇼핑 정액 방송비'],['guestCost','게스트 비용'],['administrationCost','판관비'],['otherCost','기타 고정비']] as const)fixed+=read(p[k],label);
  let ppl=0;
- if(item.ppl==='있음')ppl=read(item.allocationManaged?item.allocation:item.result?.pplCost||item.allocation,'방송에 배분된 PPL 비용');
+ if(item.ppl==='있음')ppl=read(item.allocationManaged?(item.pplBroadcastCost??item.allocation):item.result?.pplCost||item.allocation,'방송에 배분된 PPL 비용');
  else if(item.ppl!=='없음')issues.push('PPL 여부·배분금액 확정');
  fixed+=ppl;
  const gifts=(item.gifts||[]).filter(g=>g.side==='single'||g.side==='both');

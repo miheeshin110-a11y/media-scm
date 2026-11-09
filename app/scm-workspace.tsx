@@ -31,7 +31,7 @@ type RecordsResponse={syncSnapshot:SyncSnapshot;readOnly?:boolean;canReview?:boo
 type SaveResponse={syncSnapshot:SyncSnapshot;error?:string;record:Item;sync:string};
 type SyncResponse={syncSnapshot:SyncSnapshot;error?:string;accepted?:boolean};
 
-const blank = (date=new Date().toLocaleDateString('sv-SE',{timeZone:'Asia/Seoul'})): Item => ({ registrationSource:'broadcast', id:'', date, time:'', channel:'', item:'', shortItem:'', owner:'', status:'', urgent:false, ppl:'미정', program:'', pplKind:'', price:'', target:'', rate:'', contractId:'', contractAmount:'', allocation:'', attribution:'', sync:'대기',workflow:'작성 중',calculationMode:'auto' });
+const blank = (date=new Date().toLocaleDateString('sv-SE',{timeZone:'Asia/Seoul'})): Item => ({ registrationSource:'broadcast', id:'', date, time:'', channel:'', item:'', shortItem:'', owner:'', status:'', urgent:false, ppl:'미정', program:'', pplKind:'', price:'', target:'', rate:'', contractId:'', contractAmount:'', allocation:'', attribution:'', sync:'대기',workflow:'작성 중',calculationMode:'auto',costPlan:{adCost:'',guestCost:'',administrationCost:'0',otherCost:'',shippingRate:'',shippingBasis:'sets',shippingCount:'',quantityRounding:'',moneyRounding:'',pplProcessingMonth:''} });
 const steps = ['방송 정보','PPL 연결','판매조건','목표·수량','방송비용','입력 현황'];
 const weekdays = ['일','월','화','수','목','금','토'];
 function calendarDays(month:string){const first=new Date(month+'-01T00:00:00Z'),offset=first.getUTCDay(),last=new Date(Date.UTC(first.getUTCFullYear(),first.getUTCMonth()+1,0)).getUTCDate();return Array.from({length:Math.ceil((offset+last)/7)*7},(_,i)=>{const day=new Date(first);day.setUTCDate(i-offset+1);const date=day.toISOString().slice(0,10);return {day:day.getUTCDate(),date,muted:!date.startsWith(month)}});}

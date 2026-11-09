@@ -19,6 +19,7 @@ export type Composition={enabled:boolean;sku:string;compositionName?:string;unit
 export type Gift={id:string;side:'single'|'double'|'both';item:string;units:string;unitCost:string;costDate?:string;costItemId?:string;costSnapshot?:CostSnapshot};
 export type CostPlan={adCost:string;guestCost:string;administrationCost:string;otherCost:string;shippingRate:string;shippingBasis:''|'sets'|'manual';shippingCount:string;quantityRounding:''|'floor'|'round';moneyRounding:''|'floor'|'round';pplProcessingMonth:string};
 export type Item = {
+  pplBroadcastCost?:string;
   registrationSource?:'ppl'|'broadcast';
   id:string; date:string; time:string; dateConvention?:'actual'; channel:string; item:string; shortItem:string; owner:string;
   status:string; urgent:boolean; ppl:string; program:string; pplKind:string; price:string; target:string;

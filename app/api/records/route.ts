@@ -8,7 +8,7 @@ import {readSyncSnapshot} from '@/lib/sync-status';
 import {broadcastClockIssues,usesActualClock} from '@/lib/broadcast-clock';
 import {authenticated} from '@/lib/runtime';
 import {runtime,identity,checkWrite,readable,editable,reviewer} from '@/lib/runtime';
-import {validateWorkflow,computedItem} from '@/lib/workflow';
+import {validateWorkflow,computedItem,initializeShipping} from '@/lib/workflow';
 import {saveRecord,SaveConflict} from '@/lib/record-store';
 import {seedRecords} from '@/lib/seed-records';
 import {validateItem,unifiedResult,type Item} from '@/lib/scm-model';
@@ -42,6 +42,7 @@ async function handlePOST(request:Request){
     const original=JSON.stringify({record,baseVersion});
     const previous=await db.prepare('SELECT payload FROM scm_records WHERE id=?').bind(record.id).first<{payload:string}>();
     const old:Item|undefined=previous?JSON.parse(previous.payload):seedRecords.find(x=>x.id===record.id);
+    record=initializeShipping(record,old);
     const clockErrors=broadcastClockIssues(record,old);if(clockErrors.length)return json({error:clockErrors.join(' ')},400);
     if(usesActualClock(old))record={...record,dateConvention:'actual'};
     if(!reviewer(request)){
