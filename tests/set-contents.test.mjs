@@ -3,9 +3,10 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import * as X from 'xlsx';
 import {emptyFinance,applyFinanceAction} from '../lib/finance-model.ts';
-import {emptyLogistics,applyLogisticsAction,logisticsFingerprint,logisticsPlan} from '../lib/logistics.ts';
+import {emptyLogistics,applyLogisticsAction,logisticsFingerprint,logisticsPlan,logisticsForecast,logisticsStockSkus} from '../lib/logistics.ts';
 import {applySetContents,reviewSetContents,latestSetContents} from '../lib/set-contents.ts';
 import {readSetContentsFile,setContentsHeaders} from '../lib/set-contents-file.ts';
+import {logisticsTask} from '../lib/logistics-tasks.ts';
 import {logisticsOutlook} from '../lib/logistics-outlook.ts';
 import {logisticsTables} from '../lib/logistics-sheets.ts';
 import {compositions,costPlan} from '../lib/workflow.ts';
@@ -21,8 +22,8 @@ const save=(f,rows=inputs(),extra={})=>applySetContents(f,{rows,selectedCodes:[c
 test('confirmed contents calculate product/gift preparation and expected quantities without double stock deduction or financial changes',()=>{
  const f=finance(),b=item(),before=structuredClone({f,b}),physical=logisticsPlan(b,f.logistics),fp=logisticsFingerprint(b,f.logistics),l=save(f),o=logisticsOutlook(b,l);
  assert.deepEqual(o.componentRequirements.map(r=>[r.role,r.prepare,r.expected,r.unit]),[['product',1800,1440,'박스'],['gift',200,160,'개']]);assert.deepEqual(o.componentIssues,[]);
- assert.deepEqual(logisticsPlan(b,l),physical);assert.equal(logisticsFingerprint(b,l),fp);assert.deepEqual({f,b},before);
- const raw=logisticsTables({...f,logistics:l},[b]);assert.equal(raw.find(t=>t.title==='SCM_물류단품예상').rows.length,2);assert.equal(raw.find(t=>t.title==='SCM_물류수량').rows.length,1);
+ assert.equal(physical.requirements.length,0);assert.deepEqual(logisticsPlan(b,l).requirements.map(r=>[r.sku,r.quantity]),[['V-main',1800],['V-gift',200]]);assert.notEqual(logisticsFingerprint(b,l),fp);assert.deepEqual({f,b},before);
+ const raw=logisticsTables({...f,logistics:l},[b]);assert.equal(raw.find(t=>t.title==='SCM_물류단품예상').rows.length,2);assert.equal(raw.find(t=>t.title==='SCM_물류수량').rows.length,2);
 });
 test('unconfirmed, blank, zero, invalid units, organic rows and partial selected sets cannot be stored',()=>{
  for(const field of [{quantity:''},{quantity:'0'},{quantity:'1.5'},{confirmed:'확인중'},{role:''},{unit:''},{sku:code},{salesName:'홍화씨(유기농) 12박스'}])assert.throws(()=>save(finance(),[input(field)]));
@@ -50,4 +51,31 @@ test('real finance save preserves existing broadcast payload, profit, record ver
   assert.equal(result.logistics.setContents.length,1);assert.deepEqual(await db.prepare('SELECT payload,version FROM scm_records').all(),before);assert.deepEqual(await db.prepare('SELECT * FROM scm_outbox').all(),outbox);
   assert.equal((await db.prepare("SELECT state FROM scm_sheet_jobs WHERE job_key='logistics'").first()).state,'pending');
  }finally{await db.close();}
+});
+
+
+test('V-code stock compares product and gift needs, shares stock across sets and never deducts D-code set stock',()=>{
+ const f=finance(),b=item(),other={...structuredClone(b),id:'SECOND',date:'2026-11-21'},before=structuredClone({f,b,other});let l=save(f);
+ const act=(data,items=[])=>applyLogisticsAction(l,data,items,'tester',now,uuid);
+ l=act({op:'inventory',warehouse:'센터',asOf:'2026-11-09T09:00',basis:'before-plans',source:'임시',lines:[{sku:'V-main',available:2000},{sku:'V-gift',available:150}]});
+ for(const i of [b,other])l=act({op:'publish',broadcastId:i.id,warehouse:'센터',fingerprint:logisticsFingerprint(i,l),confirmComposition:true,note:'단품 구성 확인'},[i]);
+ const rows=logisticsForecast(l,'센터');assert.deepEqual(rows.map(r=>[r.sku,r.quantity,r.remaining,r.shortage]),[['V-main',1800,200,0],['V-gift',200,-50,50],['V-main',1800,-1600,1600],['V-gift',200,-250,250]]);
+ assert.ok(rows.every(r=>r.sku!==code));assert.equal(logisticsStockSkus(l).find(s=>s.code==='V-main').unit,'박스');assert.ok(!logisticsStockSkus(l).some(s=>s.code===code));
+ assert.throws(()=>act({op:'inventory',warehouse:'센터',asOf:'2026-11-09T10:00',basis:'before-plans',source:'임시',lines:[{sku:code,available:999}]}),/등록/);
+ assert.deepEqual({f,b,other},before);
+});
+test('missing gift stock is unknown and changed contents reopen review without changing released demands',()=>{
+ const f=finance(),b=item();let l=save(f);
+ l=applyLogisticsAction(l,{op:'inventory',warehouse:'센터',asOf:'2026-11-09T09:00',basis:'before-plans',source:'임시',lines:[{sku:'V-main',available:2000}]},[],'tester',now,uuid);
+ l=applyLogisticsAction(l,{op:'publish',broadcastId:b.id,warehouse:'센터',fingerprint:logisticsFingerprint(b,l),confirmComposition:true,note:'단품'},[b],'tester',now,uuid);
+ assert.equal(logisticsForecast(l,'센터').find(r=>r.sku==='V-gift').shortage,null);
+ const release=structuredClone(l.releases[0]);const changed=save({...f,logistics:l},[input({quantity:'9'}),inputs()[1]]);
+ assert.equal(logisticsTask(b,changed).kind,'review');assert.deepEqual(changed.releases[0],release);assert.equal(logisticsPlan(b,changed).requirements[0].quantity,900);
+});
+test('component unit changes never reinterpret existing stock quantities',()=>{
+ const f=finance(),b=item();let l=save(f);
+ l=applyLogisticsAction(l,{op:'inventory',warehouse:'센터',asOf:'2026-11-09T09:00',basis:'before-plans',source:'임시',lines:[{sku:'V-main',available:2000},{sku:'V-gift',available:1000}]},[],'tester',now,uuid);
+ const changed=save({...f,logistics:l},[input({unit:'개'}),inputs()[1]]);
+ const published=applyLogisticsAction(changed,{op:'publish',broadcastId:b.id,warehouse:'센터',fingerprint:logisticsFingerprint(b,changed),confirmComposition:true,note:'단위변경'},[b],'tester',now,uuid);
+ assert.equal(logisticsForecast(published,'센터').find(r=>r.sku==='V-main').remaining,null);
 });

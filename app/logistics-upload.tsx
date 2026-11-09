@@ -1,11 +1,11 @@
 'use client';
 import {useState} from 'react';
 import {logisticsHeaders,type LogisticsImportKind} from '@/lib/logistics-import';
-import type {Logistics} from '@/lib/logistics';
+import {logisticsStockSkus,type Logistics} from '@/lib/logistics';
 
 export function LogisticsUpload({kind,logistics,busy,submit}:{kind:LogisticsImportKind;logistics:Logistics;busy:boolean;submit:(rows:Record<string,unknown>[],source:string)=>Promise<boolean>}){
  const [rows,setRows]=useState<Record<string,unknown>[]>([]),[source,setSource]=useState(''),[error,setError]=useState(''),[loading,setLoading]=useState(false);
- const missing=kind==='sku'?[]:[...new Set(rows.map(r=>String(r.sku)))].filter(code=>!logistics.skus.some(s=>s.code===code));
+ const missing=kind==='sku'?[]:[...new Set(rows.map(r=>String(r.sku)))].filter(code=>!(kind==='inventory'||kind==='inbound'?logisticsStockSkus(logistics):logistics.skus).some(s=>s.code===code));
  const select=async(file:File|undefined)=>{
   if(!file)return;setRows([]);setError('');setLoading(true);
   try{
@@ -16,7 +16,7 @@ export function LogisticsUpload({kind,logistics,busy,submit}:{kind:LogisticsImpo
  };
  const headers=logisticsHeaders[kind];
  return <div className="logistics-upload">
-  <p>첫 시트에 양식 제목 그대로 입력하세요. 수량은 등록된 상품 단위(EA 또는 세트) 기준이며, 물류 상품코드는 문자 형식으로 보관하세요.</p>
+  <p>첫 시트에 양식 제목 그대로 입력하세요. 수량은 등록된 상품 단위(개·박스 등) 기준이며, 물류 상품코드는 문자 형식으로 보관하세요.</p>
   <div className="finance-actions"><a className="secondary-button" download={'물류_'+kind+'_양식.csv'} href={'data:text/csv;charset=utf-8,'+encodeURIComponent('\ufeff'+headers.join(',')+'\r\n')}>입력 양식 다운로드</a><label className="secondary-button tax-file">{loading?'읽는 중…':'XLSX·CSV 선택'}<input type="file" accept=".xlsx,.csv" disabled={busy||loading} onChange={e=>{void select(e.target.files?.[0]);e.target.value=''}}/></label></div>
   {error&&<p role="alert">{error}</p>}
   {missing.length>0&&<p role="alert">미등록 물류 상품코드: {missing.slice(0,10).join(', ')}. 품목 기준정보를 먼저 등록하세요.</p>}

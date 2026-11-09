@@ -1,6 +1,6 @@
 import {actualDateTime,type Item} from './scm-model.ts';
 import {compositions,costPlan,estimated} from './workflow.ts';
-import {latestBom,latestRelease,logisticsForecast,preparationDate,type Logistics,type ForecastPlan,type Requirement} from './logistics.ts';
+import {latestBom,latestRelease,logisticsForecast,preparationDate,stockBomLines,type Logistics,type ForecastPlan,type Requirement} from './logistics.ts';
 import {latestSetContents,type SetComponent} from './set-contents.ts';
 
 export type OutlookRequirement=Omit<Requirement,'quantity'>&{prepare:number|null;expected:number|null};
@@ -31,7 +31,8 @@ export function logisticsOutlook(item:Item,l:Logistics){
     if(perOrder===null||(requested!==null&&prepare===null)||(safeExpected!==null&&expected===null))componentIssues.push(label+' 단품수량 계산 한도 초과');
    }
   }
-  for(const component of bom?.lines||[]){
+  const expanded=bom?stockBomLines(l,bom,real.slice(0,10)):{lines:[],issues:[]};issues.push(...expanded.issues);if(bom?.shipmentMode==='set')componentIssues.push(...expanded.issues);
+  for(const component of expanded.lines){
    const prepare=multiply(requested,component.quantity),expected=multiply(safeExpected,component.quantity),old=requirements.find(r=>r.sku===component.sku&&r.role===component.role);
    if(old){old.prepare=add(old.prepare,prepare);old.expected=add(old.expected,expected);}else requirements.push({sku:component.sku,role:component.role,prepare,expected});
   }
@@ -55,7 +56,7 @@ export function logisticsScenario(l:Logistics,items:Item[],warehouse:string,mode
   if(!outlook.date){warnings.push(item.item+' · 방송 일정 미확정');missingComposition=true;continue;}
   if(snapshot&&outlook.date+'T'+outlook.time<snapshot.asOf)continue;
   if(!release)unassigned++;
-  if(outlook.lines.some(line=>!line.mapped)||!outlook.lines.length){warnings.push(outlook.date+' '+item.item+' · 물류 구성표 미등록');missingComposition=true;}
+  if(outlook.componentIssues.length||outlook.issues.some(s=>/단위|보류/.test(s))||outlook.lines.some(line=>!line.mapped)||!outlook.lines.length){warnings.push(outlook.date+' '+item.item+' · 물류 구성표 미등록');missingComposition=true;}
   plans.push({broadcastId:item.id,warehouse,revision:release?.revision||0,date:outlook.date,time:outlook.time,dueDate:mode==='expected'?outlook.date:outlook.dueDate,cancelled:false,requirements:outlook.requirements.map(r=>({sku:r.sku,role:r.role,quantity:mode==='prepare'?r.prepare:r.expected}))});
  }
  const rows=logisticsForecast(l,warehouse,plans);

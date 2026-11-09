@@ -1,14 +1,15 @@
 import {actualDateTime,type Item} from './scm-model.ts';
 import {compositions} from './workflow.ts';
+import {latestSetContents} from './set-contents.ts';
 
 export type LogisticsSku={code:string;name:string;unit?:'EA'|'세트'};
 export type BomLine={sku:string;role:'product'|'gift';quantity:number};
 export type LogisticsBom={id:string;compositionCode:string;lines:BomLine[];createdAt:string;effectiveFrom?:string;shipmentMode?:'set';sourceConfigId?:string;correctedAt?:string;correctionReason?:string};
-export type InventoryLine={sku:string;available:number;reservedForPlans:number};
+export type InventoryLine={sku:string;available:number;reservedForPlans:number;unit?:string};
 export type InventorySnapshot={id:string;warehouse:string;asOf:string;basis:'before-plans'|'unreserved';lines:InventoryLine[];source:string;createdAt:string};
-export type Inbound={id:string;sku:string;warehouse:string;date:string;quantity:number;confirmed:boolean;reference:string};
-export type Requirement={sku:string;role:'product'|'gift';quantity:number};
-export type LogisticsRelease={id:string;broadcastId:string;warehouse:string;revision:number;fingerprint:string;date:string;time:string;channel:string;item:string;urgent:boolean;dueDate:string;cancelled:boolean;requirements:Requirement[];bomIds:string[];createdAt:string;actor:string;note:string;acknowledgedAt?:string;acknowledgedBy?:string;state:'미확인'|'준비 중'|'부족 확인'|'준비 완료'|'취소';owner:string;processingNote:string};
+export type Inbound={unit?:string;id:string;sku:string;warehouse:string;date:string;quantity:number;confirmed:boolean;reference:string};
+export type Requirement={sku:string;role:'product'|'gift';quantity:number;unit?:string};
+export type LogisticsRelease={id:string;broadcastId:string;warehouse:string;revision:number;fingerprint:string;date:string;time:string;channel:string;item:string;urgent:boolean;dueDate:string;cancelled:boolean;requirements:Requirement[];bomIds:string[];createdAt:string;actor:string;note:string;acknowledgedAt?:string;acknowledgedBy?:string;completion?:{at:string;actor:string;snapshotId?:string;externalStockConfirmed:boolean};state:'미확인'|'준비 중'|'부족 확인'|'준비 완료'|'취소';owner:string;processingNote:string};
 export type LogisticsEvent={id:string;releaseId:string;at:string;actor:string;type:string;note:string};
 export type Logistics={skus:LogisticsSku[];boms:LogisticsBom[];snapshots:InventorySnapshot[];inbounds:Inbound[];releases:LogisticsRelease[];events:LogisticsEvent[];setContents?:import('./set-contents.ts').SetContents[]};
 export class LogisticsError extends Error{}
@@ -18,7 +19,26 @@ const qty=(v:unknown,label:string,zero=true)=>{if(!['string','number'].includes(
 const date=(v:unknown)=>{const s=text(v,'날짜',10);if(!/^\d{4}-\d{2}-\d{2}$/.test(s)||!actualDateTime(s,'00:00'))throw new LogisticsError('날짜를 확인해 주세요.');return s;};
 const total=(a:number,b:number)=>{const n=a+b;if(!Number.isSafeInteger(n)||n>1e15)throw new LogisticsError('단품 수량이 계산 한도를 초과했습니다.');return n;};
 export function preparationDate(day:string){const d=new Date(day+'T00:00:00Z');d.setUTCDate(d.getUTCDate()-7);return d.toISOString().slice(0,10);}
-export const logisticsUnit=(l:Logistics,sku:string)=>l.skus.find(s=>s.code===sku)?.unit||'EA';
+// Confirmed component codes are usable for stock entry without rewriting the set masters.
+export function logisticsStockSkus(l:Logistics){
+ const result=new Map<string,{code:string;name:string;unit:string}>(l.skus.filter(s=>s.unit!=='세트').map(s=>[s.code,{...s,unit:s.unit||'EA'}]));
+ for(const code of new Set((l.setContents||[]).map(c=>c.compositionCode))){
+  if(['DT00212','DT00213'].includes(code))continue;
+  const contents=latestSetContents(l,code,'9999-12-31');
+  for(const c of contents?.lines||[]){if(c.sku==='V00100110')continue;result.set(c.sku,{code:c.sku,name:c.name,unit:c.unit});}
+ }
+ return [...result.values()];
+}
+export const logisticsUnit=(l:Logistics,sku:string)=>logisticsStockSkus(l).find(s=>s.code===sku)?.unit||l.skus.find(s=>s.code===sku)?.unit||'EA';
+export function stockBomLines(l:Logistics,bom:LogisticsBom,day:string){
+ if(bom.shipmentMode!=='set')return {lines:bom.lines,issues:[] as string[]};
+ if(['DT00212','DT00213'].includes(bom.compositionCode))return {lines:[],issues:['유기농 홍화씨는 확정 전까지 보류합니다.']};
+ const contents=latestSetContents(l,bom.compositionCode,day);
+ if(!contents)return {lines:[],issues:[bom.compositionCode+' 상품·사은품 구성수량 확인 필요']};
+ const issues:string[]=[];
+ for(const c of contents.lines){if(c.unit!==logisticsUnit(l,c.sku))issues.push(c.sku+' 구성수량과 재고 단위가 다릅니다. 단위를 확인하세요.');}
+ return {lines:contents.lines.map(c=>({sku:c.sku,role:c.role,unit:c.unit,quantity:c.quantity*bom.lines[0].quantity})),issues};
+}
 export function latestBom(l:Logistics,code:string,day?:string){
  const rows=l.boms.filter(b=>!b.correctedAt&&b.compositionCode===code&&(day===undefined||!b.effectiveFrom||b.effectiveFrom<=day));
  return day===undefined?rows.at(-1):rows.sort((a,b)=>(a.effectiveFrom||'').localeCompare(b.effectiveFrom||'' )).at(-1);
@@ -26,7 +46,7 @@ export function latestBom(l:Logistics,code:string,day?:string){
 export function latestRelease(l:Logistics,broadcastId:string){return l.releases.filter(r=>r.broadcastId===broadcastId).at(-1);}
 export function logisticsFingerprint(item:Item,l:Logistics){
  const c=compositions(item);
- return JSON.stringify({id:item.id,date:item.date,time:item.time,status:item.status,urgent:Boolean(item.urgent),channel:item.channel,item:item.item,compositions:(['single','double'] as const).map(side=>({side,enabled:c[side].enabled,sku:c[side].sku,quantity:c[side].plannedQuantity,bom:latestBom(l,c[side].sku,actualDateTime(item.date,item.time).slice(0,10))?.id||''})),gifts:(item.gifts||[]).map(g=>({id:g.id,item:g.item,units:g.units,side:g.side}))});
+ return JSON.stringify({id:item.id,date:item.date,time:item.time,status:item.status,urgent:Boolean(item.urgent),channel:item.channel,item:item.item,compositions:(['single','double'] as const).map(side=>({side,enabled:c[side].enabled,sku:c[side].sku,quantity:c[side].plannedQuantity,bom:latestBom(l,c[side].sku,actualDateTime(item.date,item.time).slice(0,10))?.id||'',...(latestBom(l,c[side].sku,actualDateTime(item.date,item.time).slice(0,10))?.shipmentMode==='set'?{stockBasis:'components',contents:latestSetContents(l,c[side].sku,actualDateTime(item.date,item.time).slice(0,10))?.id||''}:{})})),gifts:(item.gifts||[]).map(g=>({id:g.id,item:g.item,units:g.units,side:g.side}))});
 }
 export function logisticsPlan(item:Item,l:Logistics){
  const issues:string[]=[],requirements:Requirement[]=[],bomIds:string[]=[];
@@ -42,7 +62,8 @@ export function logisticsPlan(item:Item,l:Logistics){
    if(!c.sku||!bom){issues.push(label+' 판매구성의 물류 구성표를 등록하세요.');continue;}
    let n:number;try{n=qty(c.plannedQuantity,label+' 요청 세트수');}catch(e){issues.push((e as Error).message);continue;}
    bomIds.push(bom.id);
-   for(const line of bom.lines){
+   const expanded=stockBomLines(l,bom,day);issues.push(...expanded.issues);
+   for(const line of expanded.lines){
     try{
      const quantity=total(0,n*line.quantity),old=requirements.find(r=>r.sku===line.sku&&r.role===line.role);
      if(old)old.quantity=total(old.quantity,quantity);else requirements.push({...line,quantity});
@@ -75,7 +96,7 @@ export function applyLogisticsAction(current:Logistics|undefined,d:Record<string
   }
   return next;
  }
- const known=(code:unknown)=>{const s=text(code,'물류 상품코드',80);if(!l.skus.some(row=>row.code===s))throw new LogisticsError('먼저 물류 상품코드를 등록하세요: '+s);return s;};
+ const known=(code:unknown)=>{const s=text(code,'물류 상품코드',80);if(!(op==='inventory'||op==='inbound'?logisticsStockSkus(l):l.skus).some(row=>row.code===s))throw new LogisticsError('먼저 물류 상품코드를 등록하세요: '+s);return s;};
  if(op==='sku'){
   const code=text(d.code,'물류 상품코드',80),name=text(d.name,'품목명');
   if(l.skus.some(s=>s.code===code))throw new LogisticsError('이미 등록된 물류 상품코드입니다.');
@@ -96,7 +117,7 @@ export function applyLogisticsAction(current:Logistics|undefined,d:Record<string
   if(basis!=='before-plans'&&basis!=='unreserved')throw new LogisticsError('WMS 가용재고 정의를 확인하세요.');
   if(!Array.isArray(d.lines)||!d.lines.length||d.lines.length>1000)throw new LogisticsError('재고는 1~1,000행을 입력하세요.');
   const seen=new Set<string>();
-  const lines=d.lines.map(raw=>{const r=raw as Record<string,unknown>;if(!r||typeof r!=='object')throw new LogisticsError('재고 행을 확인하세요.');const sku=known(r.sku);if(seen.has(sku))throw new LogisticsError('재고 파일에 중복 상품코드가 있습니다.');seen.add(sku);const available=qty(r.available,'가용재고'),reservedForPlans=basis==='unreserved'?qty(r.reservedForPlans,'이번 계획에 대해 이미 차감된 예약수량'):0;total(available,reservedForPlans);return {sku,available,reservedForPlans};});
+  const lines=d.lines.map(raw=>{const r=raw as Record<string,unknown>;if(!r||typeof r!=='object')throw new LogisticsError('재고 행을 확인하세요.');const sku=known(r.sku);if(seen.has(sku))throw new LogisticsError('재고 파일에 중복 상품코드가 있습니다.');seen.add(sku);const available=qty(r.available,'가용재고'),reservedForPlans=basis==='unreserved'?qty(r.reservedForPlans,'이번 계획에 대해 이미 차감된 예약수량'):0;total(available,reservedForPlans);return {sku,available,reservedForPlans,unit:logisticsUnit(l,sku)};});
   // A snapshot is a full replacement for a warehouse, not an additive stock movement.
   const previous=l.snapshots.filter(s=>s.warehouse===warehouse).at(-1);
   if(previous&&asOf<previous.asOf)throw new LogisticsError('현재 재고보다 이전 기준시각입니다. 재고 자료를 확인하세요.');
@@ -105,7 +126,7 @@ export function applyLogisticsAction(current:Logistics|undefined,d:Record<string
  }else if(op==='inbound'){
   const id=typeof d.id==='string'?d.id:'',old=l.inbounds.find(r=>r.id===id);
   if(id&&!old)throw new LogisticsError('입고 내역을 다시 선택하세요.');
-  const row:Inbound={id:old?.id||uuid(),sku:known(d.sku),warehouse:text(d.warehouse,'창고',80),date:date(d.date),quantity:qty(d.quantity,'입고예정 단품수'),confirmed:d.confirmed===true,reference:text(d.reference,'입고 참조번호',100)};
+  const row:Inbound={unit:logisticsUnit(l,String(d.sku)),id:old?.id||uuid(),sku:known(d.sku),warehouse:text(d.warehouse,'창고',80),date:date(d.date),quantity:qty(d.quantity,'입고예정 단품수'),confirmed:d.confirmed===true,reference:text(d.reference,'입고 참조번호',100)};
   if(l.inbounds.some(r=>r.id!==row.id&&r.warehouse===row.warehouse&&r.reference===row.reference&&r.sku===row.sku))throw new LogisticsError('같은 창고·입고번호·상품 내역이 이미 있습니다. 기존 행을 수정하세요.');
   if(old)l.inbounds[l.inbounds.indexOf(old)]=row;else l.inbounds.push(row);
  }else if(op==='publish'){
@@ -129,6 +150,12 @@ export function applyLogisticsAction(current:Logistics|undefined,d:Record<string
   }else{
    if(!release.acknowledgedAt||release.cancelled)throw new LogisticsError('먼저 SCM 확인을 완료하세요.');
    if(!['준비 중','부족 확인','준비 완료'].includes(String(d.state)))throw new LogisticsError('준비 상태를 확인하세요.');
+   if(d.state==='준비 완료'){
+    if(d.confirmPreparation!==true)throw new LogisticsError('본품·사은품의 실제 준비 완료를 확인하세요.');
+    const evidence=preparationEvidence(l,release);
+    if(evidence.needsExternal&&(d.externalStockConfirmed!==true||!note.trim()))throw new LogisticsError('재고 미확인·부족분의 실제 확보를 별도로 확인하고 처리 근거를 입력하세요.');
+    release.completion={at:now,actor,...(evidence.snapshot?{snapshotId:evidence.snapshot.id}:{}),externalStockConfirmed:evidence.needsExternal};
+   }else delete release.completion;
    release.state=d.state as LogisticsRelease['state'];release.owner=owner;release.processingNote=note;
   }
   l.events.push({id:uuid(),releaseId:release.id,at:now,actor,type:op==='ack'?'SCM 확인':release.state,note});
@@ -139,21 +166,32 @@ export function applyLogisticsAction(current:Logistics|undefined,d:Record<string
 
 export type ForecastPlan=Pick<LogisticsRelease,'broadcastId'|'warehouse'|'revision'|'date'|'time'|'dueDate'|'cancelled'>&{requirements:(Omit<Requirement,'quantity'>&{quantity:number|null})[]};
 export type ForecastRow={warehouse:string;sku:string;broadcastId:string;revision:number;date:string;dueDate:string;quantity:number|null;remaining:number|null;shortage:number|null;lateInbound:number;notice:string};
+export function preparationEvidence(l:Logistics,release:LogisticsRelease){
+ const snapshot=l.snapshots.filter(s=>s.warehouse===release.warehouse).at(-1),stock=logisticsForecast(l,release.warehouse).filter(r=>r.broadcastId===release.broadcastId);
+ const needsStock=release.requirements.some(r=>r.quantity>0);
+ const unknown=needsStock&&(!snapshot||release.requirements.some(r=>r.quantity>0&&!snapshot.lines.some(s=>s.sku===r.sku))||!stock.length||stock.some(r=>r.remaining===null));
+ const shortage=stock.some(r=>(r.shortage??0)>0);
+ return {snapshot,stock,unknown,shortage,needsExternal:unknown||shortage};
+}
 export function logisticsForecast(l:Logistics,warehouse:string,scenario?:ForecastPlan[]):ForecastRow[]{
  const snapshot=l.snapshots.filter(s=>s.warehouse===warehouse).at(-1);if(!snapshot)return [];
  const releases=(scenario||[...new Map(l.releases.map(r=>[r.broadcastId,r])).values()]).filter(r=>r.warehouse===warehouse&&!r.cancelled&&(r.date+'T'+r.time)>=snapshot.asOf).sort((a,b)=>(a.date+a.time+a.broadcastId).localeCompare(b.date+b.time+b.broadcastId));
- const balances=new Map<string,number|null>(snapshot.lines.map(r=>[r.sku,r.available+r.reservedForPlans])),used=new Set<string>(),out:ForecastRow[]=[];
+ const sameUnit=(a:string,b:string)=>a===b||(['EA','개'].includes(a)&&['EA','개'].includes(b));
+ const balances=new Map<string,number|null>(snapshot.lines.map(r=>[r.sku,sameUnit(r.unit||l.skus.find(s=>s.code===r.sku)?.unit||'EA',logisticsUnit(l,r.sku))?r.available+r.reservedForPlans:null])),used=new Set<string>(),out:ForecastRow[]=[];
  for(const release of releases){
   // Preparation deadlines are seven days before broadcast; overdue plans need stock now.
   const cutoff=release.dueDate<snapshot.asOf.slice(0,10)?snapshot.asOf.slice(0,10):release.dueDate;
-  const needs=new Map<string,number|null>();for(const r of release.requirements){const previous=needs.get(r.sku);needs.set(r.sku,previous===null||r.quantity===null?null:total(previous||0,r.quantity));}
+  const needs=new Map<string,number|null>();for(const r of release.requirements){const previous=needs.get(r.sku),unitChanged=r.unit!==undefined&&!sameUnit(r.unit,logisticsUnit(l,r.sku));needs.set(r.sku,previous===null||r.quantity===null||unitChanged?null:total(previous||0,r.quantity));}
   for(const [sku,quantity] of needs){
+   if(logisticsUnit(l,sku)==='세트'){out.push({warehouse,sku,broadcastId:release.broadcastId,revision:release.revision,date:release.date,dueDate:release.dueDate,quantity,remaining:null,shortage:null,lateInbound:0,notice:'이전 세트 기준 요청 · 단품 구성 확인 후 준비 요청을 갱신하세요.'});continue;}
    const incoming=l.inbounds.filter(i=>i.warehouse===warehouse&&i.sku===sku&&i.confirmed&&i.date>snapshot.asOf.slice(0,10));
+   const unitMismatch=incoming.some(i=>!sameUnit(i.unit||l.skus.find(s=>s.code===sku)?.unit||'EA',logisticsUnit(l,sku)));
+   if(unitMismatch)balances.set(sku,null);
    let balance=balances.get(sku);
    for(const i of incoming.filter(i=>i.date<=cutoff&&!used.has(i.id))){if(balance!==undefined&&balance!==null)balance=total(balance,i.quantity);used.add(i.id);}
    const lateInbound=incoming.filter(i=>i.date>cutoff&&i.date<=release.date).reduce((n,i)=>total(n,i.quantity),0);
    const remaining=balance===undefined||balance===null||quantity===null?null:balance-quantity;balances.set(sku,remaining);
-   out.push({warehouse,sku,broadcastId:release.broadcastId,revision:release.revision,date:release.date,dueDate:release.dueDate,quantity,remaining,shortage:remaining===null?null:Math.max(0,-remaining),lateInbound,notice:quantity===null?'필요수량 미확인':remaining===null?(balance===undefined?'재고 미등록':'이전 방송 수량·재고 미확인'):release.dueDate<snapshot.asOf.slice(0,10)?'준비기한 경과 · 실제 준비 확인 필요':''});
+   out.push({warehouse,sku,broadcastId:release.broadcastId,revision:release.revision,date:release.date,dueDate:release.dueDate,quantity,remaining,shortage:remaining===null?null:Math.max(0,-remaining),lateInbound,notice:quantity===null?'필요수량 미확인':remaining===null?(balance===undefined?'재고 미등록':'이전 방송 수량·재고 또는 수량 단위 미확인'):release.dueDate<snapshot.asOf.slice(0,10)?'준비기한 경과 · 실제 준비 확인 필요':''});
   }
  }
  return out;

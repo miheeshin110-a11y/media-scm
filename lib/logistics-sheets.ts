@@ -1,4 +1,4 @@
-import {emptyLogistics,latestBom,latestRelease,logisticsForecast,logisticsUnit} from './logistics.ts';
+import {emptyLogistics,latestBom,latestRelease,logisticsForecast,logisticsUnit,logisticsStockSkus} from './logistics.ts';
 import {logisticsTask} from './logistics-tasks.ts';
 import {logisticsOutlook,logisticsScenario} from './logistics-outlook.ts';
 import {compositions,costPlan} from './workflow.ts';
@@ -27,7 +27,7 @@ export const LOGISTICS_ROW_PREFIX='scm:logistics:';
 const id=(...parts:(string|number)[])=>LOGISTICS_ROW_PREFIX+JSON.stringify(parts);
 const value=(n:number|null)=>n===null?'':n;
 export function logisticsTables(finance:Finance,items:Item[]):SheetTable[]{
- const l=finance.logistics||emptyLogistics(),v=finance.version,skuName=(sku:string)=>l.skus.find(s=>s.code===sku)?.name||'',compositionName=(code:string)=>salesCompositionChoices(finance).find(s=>s.code===code)?.name||'';
+ const l=finance.logistics||emptyLogistics(),v=finance.version,skuName=(sku:string)=>logisticsStockSkus(l).find(s=>s.code===sku)?.name||l.skus.find(s=>s.code===sku)?.name||'',compositionName=(code:string)=>salesCompositionChoices(finance).find(s=>s.code===code)?.name||'';
  const data=Object.fromEntries(Object.keys(logisticsSheetHeaders).map(title=>[title,[]])) as unknown as Record<keyof typeof logisticsSheetHeaders,SheetRow[]>;
  for(const item of items){
   const o=logisticsOutlook(item,l),t=logisticsTask(item,l),r=t.release,version=item.version||0,cs=compositions(item),rounding=costPlan(item).quantityRounding;
@@ -39,14 +39,14 @@ export function logisticsTables(finance:Finance,items:Item[]):SheetTable[]{
   for(const row of o.componentRequirements)data.SCM_물류단품예상.push([id('component-expected',item.id,row.sku,row.role,row.unit),item.id,day,row.sku,row.name,row.role==='gift'?'사은품':'본품',row.unit,value(row.prepare),value(row.expected),o.componentIssues.join(' · '),version,v]);
  }
  for(const contents of l.setContents||[])for(const row of contents.lines)data.SCM_물류단품구성.push([id('set-content',contents.id,row.sku),contents.id,contents.compositionCode,compositionName(contents.compositionCode),row.sku,row.name,row.role==='gift'?'사은품':'본품',row.quantity,row.unit,contents.effectiveFrom,contents.createdAt,contents.actor,v]);
- for(const sku of l.skus)data.SCM_물류상품.push([id('sku',sku.code),sku.code,sku.name,sku.unit||'EA',v]);
+ for(const sku of [...l.skus.filter(s=>s.unit==='세트'),...logisticsStockSkus(l)])data.SCM_물류상품.push([id('sku',sku.code),sku.code,sku.name,sku.unit||'EA',v]);
  for(const bom of l.boms)for(const row of bom.lines)data.SCM_물류구성표.push([id('bom',bom.id,row.sku,row.role),bom.id,bom.compositionCode,compositionName(bom.compositionCode),row.sku,skuName(row.sku),row.role==='gift'?'사은품':'본품',row.quantity,logisticsUnit(l,row.sku),bom.createdAt,bom.correctedAt?'오등록 정정':latestBom(l,bom.compositionCode)?.id===bom.id?'최신':'이전',v,bom.effectiveFrom||'',bom.shipmentMode==='set'?'완제품 세트':'개별 품목',bom.sourceConfigId||'']);
- for(const snapshot of l.snapshots)for(const row of snapshot.lines)data.SCM_물류재고.push([id('stock',snapshot.id,row.sku),snapshot.id,snapshot.warehouse,snapshot.asOf,row.sku,skuName(row.sku),row.available,row.reservedForPlans,row.available+row.reservedForPlans,snapshot.basis==='before-plans'?'이번 계획 예약 차감 전':'이번 계획 예약 차감 후',logisticsUnit(l,row.sku),snapshot.source,snapshot.createdAt,l.snapshots.filter(s=>s.warehouse===snapshot.warehouse).at(-1)?.id===snapshot.id?'최신':'이전',v]);
- for(const row of l.inbounds)data.SCM_물류입고.push([id('inbound',row.id),row.id,row.reference,row.warehouse,row.sku,skuName(row.sku),row.date,row.quantity,logisticsUnit(l,row.sku),row.confirmed?'확정':'미확정',v]);
+ for(const snapshot of l.snapshots)for(const row of snapshot.lines)data.SCM_물류재고.push([id('stock',snapshot.id,row.sku),snapshot.id,snapshot.warehouse,snapshot.asOf,row.sku,skuName(row.sku),row.available,row.reservedForPlans,row.available+row.reservedForPlans,snapshot.basis==='before-plans'?'이번 계획 예약 차감 전':'이번 계획 예약 차감 후',row.unit||logisticsUnit(l,row.sku),snapshot.source,snapshot.createdAt,l.snapshots.filter(s=>s.warehouse===snapshot.warehouse).at(-1)?.id===snapshot.id?'최신':'이전',v]);
+ for(const row of l.inbounds)data.SCM_물류입고.push([id('inbound',row.id),row.id,row.reference,row.warehouse,row.sku,skuName(row.sku),row.date,row.quantity,row.unit||logisticsUnit(l,row.sku),row.confirmed?'확정':'미확정',v]);
  for(const r of l.releases){
   const latest=latestRelease(l,r.broadcastId)?.id===r.id?'최신':'이전';
   data.SCM_물류요청.push([id('release',r.id),r.id,r.broadcastId,r.revision,r.date,r.time,r.channel,r.item,r.warehouse,r.dueDate,r.createdAt,r.actor,r.note,r.acknowledgedAt||'',r.acknowledgedBy||'',r.state,r.owner,r.processingNote,r.cancelled?'취소':'유효',latest,r.urgent?'급편성':'',v]);
-  for(const row of r.requirements)data.SCM_물류요청품목.push([id('release-item',r.id,row.sku,row.role),r.id,r.broadcastId,r.revision,row.sku,skuName(row.sku),row.role==='gift'?'사은품':'본품',row.quantity,logisticsUnit(l,row.sku),r.cancelled?'취소':'유효',latest,v]);
+  for(const row of r.requirements)data.SCM_물류요청품목.push([id('release-item',r.id,row.sku,row.role),r.id,r.broadcastId,r.revision,row.sku,skuName(row.sku),row.role==='gift'?'사은품':'본품',row.quantity,row.unit||logisticsUnit(l,row.sku),r.cancelled?'취소':'유효',latest,v]);
  }
  for(const e of l.events){const r=l.releases.find(r=>r.id===e.releaseId);data.SCM_물류처리이력.push([id('event',e.id),e.id,e.releaseId,r?.broadcastId||'',r?.revision??'',e.at,e.actor,e.type,e.note,v]);}
  for(const warehouse of [...new Set(l.snapshots.map(s=>s.warehouse))]){

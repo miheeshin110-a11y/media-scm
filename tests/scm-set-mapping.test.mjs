@@ -14,7 +14,7 @@ function broadcast(day){const b={id:'B',date:day,time:'10:00',item:'test',result
 test('finished sets do not separately deduct gifts or mutate financial/broadcast data; dates select the correct version',()=>{
  const before=structuredClone(f),b=broadcast('2026-11-20'),snapshot=structuredClone(b);
  let l=apply(f,[row()]);assert.equal(latestBom(l,choices[0].code,'2026-11-15'),undefined);
- assert.equal(logisticsPlan(b,l).requirements.length,1);assert.equal(logisticsPlan(b,l).requirements[0].quantity,10);
+ assert.equal(logisticsPlan(b,l).requirements.length,0);assert.ok(logisticsPlan(b,l).issues.some(s=>s.includes('구성수량')));
  const fp=logisticsFingerprint(b,l);l=apply({...f,logistics:l},[row(0,{setSku:'V-new'})],{effectiveFrom:'2026-12-01'});
  assert.equal(logisticsFingerprint(b,l),fp);assert.equal(latestBom(l,choices[0].code,'2026-12-01').lines[0].sku,'V-new');
  assert.deepEqual(f,before);assert.deepEqual(b,snapshot);assert.equal(l.skus[0].unit,'세트');
