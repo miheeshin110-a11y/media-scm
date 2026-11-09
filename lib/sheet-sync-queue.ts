@@ -1,10 +1,12 @@
 import type {ScmEnv} from './runtime';
-import {sheetsConfigured,syncFinance,syncRecord,syncLogistics} from './google-sync.ts';
+import {sheetsConfigured,syncFinance,syncRecord,syncLogistics,syncTestReset} from './google-sync.ts';
 
 // Every business save commits its outbox entry in the same transaction.
 // Interrupted workers resume from that durable queue, not an in-memory promise.
 export async function flushPendingSheets(env:ScmEnv,retryFailed=false){
  if(!sheetsConfigured(env))return;
+ const reset=await env.DB.prepare("SELECT state FROM scm_sheet_jobs WHERE job_key='test-reset' AND state!='sent'").first();
+ if(reset&&await syncTestReset(env)!=='sent')return;
  const started=Date.now(),state=retryFailed?"state!='sent'":"state='pending'";
  const eligible=state+' AND (lease_until IS NULL OR lease_until<?)';
  const finance=await env.DB.prepare('SELECT id FROM scm_finance WHERE id=1 AND '+eligible).bind(Date.now()).first();

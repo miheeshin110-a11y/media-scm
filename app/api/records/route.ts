@@ -23,11 +23,11 @@ async function handleGET(request:Request){
   const env=runtime(),db=env.DB.withSession('first-primary');
   const historyId=new URL(request.url).searchParams.get('history');
   if(historyId){if(!editable(request))return json({error:'관리자만 변경 이력을 볼 수 있습니다.'},403);const history=await db.prepare('SELECT version,actor,created_at,before_payload,after_payload FROM scm_revisions WHERE record_id=? ORDER BY version DESC LIMIT 20').bind(historyId).all();return json({history:history.results});}
-  const [saved,finance,syncSnapshot]=await Promise.all([
+  const [saved,finance,syncSnapshot,resetState]=await Promise.all([
     db.prepare('SELECT r.payload,o.state FROM scm_records r LEFT JOIN scm_outbox o ON o.record_id=r.id ORDER BY r.row_id LIMIT 2000').all<{payload:string;state:string}>(),
-    readFinance(db),readSyncSnapshot(db),
+    readFinance(db),readSyncSnapshot(db),db.prepare("SELECT request_id FROM scm_finance_revisions WHERE request_id LIKE 'test-reset-%' LIMIT 1").first(),
   ]);
-  const merged=new Map(seedRecords.map(item=>[item.id,item]));for(const row of saved.results){const item=JSON.parse(row.payload) as Item;item.sync=row.state==='sent'?'완료':'대기';merged.set(item.id,item);}
+  const merged=new Map((resetState?[]:seedRecords).map(item=>[item.id,item]));for(const row of saved.results){const item=JSON.parse(row.payload) as Item;item.sync=row.state==='sent'?'완료':'대기';merged.set(item.id,item);}
   const readOnly=!editable(request);
   return json({syncSnapshot,finance,readOnly,canReview:reviewer(request),items:[...merged.values()].map(x=>{const row=withFinance(x,finance);if(readOnly){delete row.updatedBy;delete row.reviewedBy;}return row;}).sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time)),sheetsConfigured:sheetsConfigured(env),storage:'server',actor:identity(request)});
 }

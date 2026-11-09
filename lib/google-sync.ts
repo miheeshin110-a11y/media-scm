@@ -7,6 +7,20 @@ import type {Item} from './scm-model';
 import {TEST_SHEET_ID} from './sheet-mapping.ts';
 import {withSheetWriteLock,writeMergedSheets} from './sheet-writer.ts';
 import {broadcastTables,financeTables} from './sheet-sync-tables.ts';
+import {sheetHeaders} from './sheet-mapping.ts';
+import {workflowHeaders} from './workflow-sheets.ts';
+import {financeSheetHeaders} from './finance-sheets.ts';
+export async function syncTestReset(env:ScmEnv):Promise<SyncState>{
+ if(!sheetsConfigured(env))return 'not_configured';
+ try{return await withSheetWriteLock<SyncState>(env.DB,async db=>{
+  const job=await db.prepare("SELECT generation,state FROM scm_sheet_jobs WHERE job_key='test-reset'").first<{generation:number;state:string}>();if(!job||job.state==='sent')return 'sent';
+  const finance=await readFinance(db),records=(await db.prepare('SELECT payload FROM scm_records ORDER BY row_id').all<{payload:string}>()).results.map(r=>JSON.parse(r.payload) as Item);
+  const sources=[...records.flatMap(broadcastTables),...financeTables(finance)],headers={...sheetHeaders,...workflowHeaders,...financeSheetHeaders};
+  const tables=Object.entries(headers).map(([title,columns])=>({title,width:columns.length,rows:sources.filter(t=>t.title===title).flatMap(t=>t.rows),owns:()=>true}));
+  await writeMergedSheets(await accessToken(env),TEST_SHEET_ID,tables);
+  await db.prepare("UPDATE scm_sheet_jobs SET state='sent',last_error=NULL WHERE job_key='test-reset' AND generation=?").bind(job.generation).run();return 'sent';
+ })??'pending';}catch{await env.DB.prepare("UPDATE scm_sheet_jobs SET state='failed',last_error='테스트 시트 정리 재전송 필요' WHERE job_key='test-reset'").run();return 'failed';}
+}
 export function sheetsConfigured(env:ScmEnv){return Boolean(env.GOOGLE_SERVICE_ACCOUNT_EMAIL&&env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY);}
 const b64=(bytes:Uint8Array)=>btoa(String.fromCharCode(...bytes)).replace(/=/g,'').replace(/\+/g,'-').replace(/\//g,'_');
 const encode=(value:unknown)=>b64(new TextEncoder().encode(JSON.stringify(value)));
