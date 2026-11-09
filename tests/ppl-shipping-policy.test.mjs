@@ -61,3 +61,38 @@ test('PostgreSQL new allocation stores separate broadcast cost without migrating
  const replay=await saveFinance(db,{kind:'allocation',data:{contractId:'C',broadcastId:'A',net:'40000000',month:'2026-11'}},1,'agency-new','actor','hash',[]);assert.deepEqual(replay,saved);
  }finally{await db.close();}
 });
+
+test('same principal opts in per allocation, preserving all unselected legacy and previously calculated costs',()=>{
+ const f=finance();f.allocations=[{id:'old-A',code:'A',contractId:'C',broadcastId:'A',net:'40000000',tax:'4000000',month:'2026-11',active:true},{id:'old-B',code:'B',contractId:'C',broadcastId:'B',net:'20000000',tax:'2000000',month:'2026-11',active:true,broadcastCost:'18500000',agencyFee:'1500000'}];
+ const before=structuredClone(f),rows=[{...draft('A','40000000','old-A'),applyAgencyCost:true},draft('B','20000000','old-B')];
+ const next=apply(f,rows);assert.deepEqual(f,before);
+ assert.equal(next.allocations[0].net,'40000000');assert.equal(next.allocations[0].broadcastCost,'36000000');assert.equal(next.allocations[0].agencyFee,'4000000');assert.equal(next.allocations[1].broadcastCost,'18500000');assert.equal(next.allocations[1].agencyFee,'1500000');
+ assert.equal(next.allocations[0].applyAgencyCost,undefined);assert.deepEqual(contractTotals(next,'C').remaining,{net:'0',tax:'0'});
+ const repeated=apply(next,rows);assert.equal(repeated.allocations[0].broadcastCost,'36000000','always deduct from principal, never deduct twice');
+ const unchecked=apply(f,rows.map(r=>({...r,applyAgencyCost:false})));assert.equal(unchecked.allocations[0].broadcastCost,undefined);assert.equal(unchecked.allocations[1].broadcastCost,'18500000');
+ const previews=previewAllocationCosts(f.contracts[0],f.allocations,rows.map(r=>({...r,key:r.id})));assert.equal(previews.get('old-A').cost,'36000000');assert.equal(previews.get('old-B').cost,'18500000');
+});
+test('same-amount single save and preview agree; bad opt-in types and inapplicable contracts are rejected',()=>{
+ const f=finance();f.allocations=[{id:'old-A',code:'A',contractId:'C',broadcastId:'A',net:'20000000',tax:'2000000',month:'2026-11',active:true}];
+ const action={kind:'allocation',data:{...draft('A','20000000','old-A'),contractId:'C',applyAgencyCost:true}};
+ const next=applyFinanceAction(f,action,new Set(['A']),now,uuid);assert.equal(next.allocations[0].broadcastCost,'18000000');
+ const unselected=applyFinanceAction(f,{...action,data:{...action.data,applyAgencyCost:false}},new Set(['A']),now,uuid);assert.equal(unselected.allocations[0].broadcastCost,undefined);
+ for(const value of ['true','false',1,null])assert.throws(()=>applyFinanceAction(f,{...action,data:{...action.data,applyAgencyCost:value}},new Set(['A']),now,uuid),/選択|선택/);
+ assert.throws(()=>applyFinanceAction({...f,contracts:[{...f.contracts[0],tradeType:'direct'}]},action,new Set(['A']),now,uuid),/대행 거래/);
+ assert.throws(()=>applyFinanceAction({...f,contracts:[{...f.contracts[0],agencyRate:''}]},action,new Set(['A']),now,uuid),/대행료율/);
+});
+test('PostgreSQL explicit same-amount application audits only the selected broadcast and preserves its goods costs',async()=>{
+ const db=await store();try{
+ const f=finance();f.version=1;f.allocations=[{id:'old-A',code:'A',contractId:'C',broadcastId:'A',net:'40000000',tax:'4000000',month:'2026-11',active:true},{id:'old-B',code:'B',contractId:'C',broadcastId:'B',net:'20000000',tax:'2000000',month:'2026-11',active:true}];
+ for(const id of ['A','B'])await saveRecord(db,withFinance(item(id),f),0,'opt-seed-'+id,'actor','hash');
+ await db.prepare("INSERT INTO scm_finance(id,payload,version,request_id,state) VALUES(1,?,1,'seed','sent')").bind(JSON.stringify(f)).run();
+ const beforeA=JSON.parse((await db.prepare("SELECT payload FROM scm_records WHERE id='A'").first()).payload),beforeB=await db.prepare("SELECT payload,version FROM scm_records WHERE id='B'").first();
+ const action={kind:'allocations',data:{contractId:'C',rows:[{...draft('A','40000000','old-A'),applyAgencyCost:true},{...draft('B','20000000','old-B'),applyAgencyCost:false}]}};
+ const saved=await saveFinance(db,action,1,'opt-apply','actor','hash',[]);
+ const afterA=JSON.parse((await db.prepare("SELECT payload FROM scm_records WHERE id='A'").first()).payload);
+ assert.equal(afterA.result.goodsCost,beforeA.result.goodsCost);assert.deepEqual(afterA.compositions,beforeA.compositions);assert.deepEqual(afterA.costPlan,beforeA.costPlan);assert.equal(afterA.result.pplCost,'36000000');assert.equal(Number(withFinance(afterA,saved).result.profit)-Number(beforeA.result.profit),4000000);
+ assert.deepEqual(await db.prepare("SELECT payload,version FROM scm_records WHERE id='B'").first(),beforeB);
+ assert.equal((await db.prepare("SELECT count(*)::int AS n FROM scm_revisions WHERE record_id='B'").first()).n,1);
+ const replay=await saveFinance(db,action,1,'opt-apply','actor','hash',[]);assert.deepEqual(replay,saved);assert.equal((await db.prepare("SELECT count(*)::int AS n FROM scm_revisions WHERE record_id='A'").first()).n,2);
+ }finally{await db.close();}
+});

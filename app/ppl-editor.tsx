@@ -15,7 +15,7 @@ import {duplicatePplErrors} from '@/lib/ppl-duplicates';
 import type {FinanceSave} from './finance-entry';
 import {Field,Value,NumberInput} from './entry-fields';
 
-export type PplDraft={selected:string;net:string;month:string;slot?:number;slots?:string[]};
+export type PplDraft={applyAgencyCost?:boolean;selected:string;net:string;month:string;slot?:number;slots?:string[]};
 const won=(value:string|number)=>Number(value||0).toLocaleString('ko-KR')+'원';
 export function PplEditor({form,onChange,items,finance,save,canManage,onSave,onOpenRegistry,preferredId='',draft,onCommit,onNextLabel,onContinue}:{form:Item;onChange:(item:Item)=>void;items:Item[];finance:Finance;save:FinanceSave;canManage:boolean;onSave:(item:Item)=>Promise<Item|false>;onOpenRegistry:(startNew:boolean,draft:PplDraft)=>void;preferredId?:string;draft?:PplDraft;onCommit:(fn:(()=>Promise<boolean>)|null)=>void;onNextLabel:(label:string)=>void;onContinue:()=>void}){
  const linked=finance.allocations.filter(a=>a.active&&a.broadcastId===form.id);
@@ -25,15 +25,16 @@ export function PplEditor({form,onChange,items,finance,save,canManage,onSave,onO
  const committing=useRef(false);
  const linkedIds=linked.map(a=>a.contractId).join('|');
  useEffect(()=>{setSlots(old=>{const missing=linkedIds.split('|').filter(id=>id&&!old.includes(id));return missing.length?[...old,...missing]:old;});},[linkedIds]);
- const registryDraft=():PplDraft=>({selected,net,month,slot:activeSlot,slots});
+ const registryDraft=():PplDraft=>({selected,net,month,slot:activeSlot,slots,applyAgencyCost});
  const [net,setNet]=useState(draft?.selected===selected?draft.net:linked.find(a=>a.contractId===selected)?.net||''),[month,setMonth]=useState(draft?.selected===selected?draft.month:linked.find(a=>a.contractId===selected)?.month||form.attribution||form.date.slice(0,7)),[notice,setNotice]=useState('');
  const c=finance.contracts.find(c=>c.id===selected),allocation=linked.find(a=>a.contractId===selected);
- const resetKey=JSON.stringify([selected,allocation?.net,allocation?.month,form.attribution,form.date]),lastKey=useRef(resetKey);
- useEffect(()=>{if(lastKey.current===resetKey)return;lastKey.current=resetKey;setNet(allocation?.net||'');setMonth(allocation?.month||form.attribution||form.date.slice(0,7));setNotice('');},[resetKey,allocation?.net,allocation?.month,form.attribution,form.date]);
+ const [applyAgencyCost,setApplyAgencyCost]=useState(draft?.selected===selected&&draft.applyAgencyCost===true);
+ const resetKey=JSON.stringify([selected,allocation?.net,allocation?.month,allocation?.broadcastCost,form.attribution,form.date]),lastKey=useRef(resetKey);
+ useEffect(()=>{if(lastKey.current===resetKey)return;lastKey.current=resetKey;setNet(allocation?.net||'');setMonth(allocation?.month||form.attribution||form.date.slice(0,7));setNotice('');setApplyAgencyCost(false);},[resetKey,allocation?.net,allocation?.month,allocation?.broadcastCost,form.attribution,form.date]);
  const links=linksOf(form),link=links.find(l=>l.contractRef===selected);
  const t=c?contractTotals(finance,c.id):null;
  const available=c&&t?amount(t.remaining.net)+amount(allocation?.net||''):0;
- const costPreview=c?previewAllocationCosts(c,finance.allocations.filter(a=>a.active&&a.contractId===c.id),[...finance.allocations.filter(a=>a.active&&a.contractId===c.id&&a.id!==allocation?.id).map(a=>({...a,key:a.id})),{id:allocation?.id||'',key:'current',net,broadcastId:form.id}]).get('current'):null;
+ const costPreview=c?previewAllocationCosts(c,finance.allocations.filter(a=>a.active&&a.contractId===c.id),[...finance.allocations.filter(a=>a.active&&a.contractId===c.id&&a.id!==allocation?.id).map(a=>({...a,key:a.id})),{id:allocation?.id||'',key:'current',net,broadcastId:form.id,applyAgencyCost}]).get('current'):null;
  const valid=!!c&&/^\d+$/.test(net)&&Number.isSafeInteger(Number(net))&&amount(net)<=available&&/^\d{4}-(0[1-9]|1[0-2])$/.test(month);
  const candidate=():Item=>{
   if(!c)return form;
@@ -56,7 +57,8 @@ export function PplEditor({form,onChange,items,finance,save,canManage,onSave,onO
   if(c.airings?.some(a=>a.id)&&!resolveAiring(c,airing)){setNotice('연결할 PPL 송출회차를 선택하세요.');return false;}
   const saved=await onSave(next);if(!saved)return false;
   if(!canManage){setNotice('PPL 선택을 부분 저장했습니다. 금액 배분은 팀장이 진행합니다.');return true;}
-  const result=await save({kind:'allocation',data:{id:allocation?.id||'',contractId:c.id,broadcastId:saved.id,month,net,airing,taxMode:'auto'}});
+  const result=await save({kind:'allocation',data:{id:allocation?.id||'',contractId:c.id,broadcastId:saved.id,month,net,airing,taxMode:'auto',applyAgencyCost}});
+  if(result)setApplyAgencyCost(false);
   setNotice(result?'이 방송의 PPL 연결과 배분금액을 저장했습니다.':'방송은 저장됐지만 금액 배분은 완료되지 않았습니다. 오류 안내를 확인한 뒤 다시 저장하세요.');
   return Boolean(result);
   }finally{committing.current=false;}
@@ -107,7 +109,7 @@ export function PplEditor({form,onChange,items,finance,save,canManage,onSave,onO
     <div className="allocation-summary"><div><span>PPL 총금액 · 부가세 별도</span><strong>{won(c.net)}</strong></div><div><span>다른 방송에 배분한 금액</span><strong>{won(amount(t.allocated.net)-amount(allocation?.net||''))}</strong></div><div><span>현재 방송에 배분 가능한 금액</span><strong>{won(available)}</strong></div></div>
     <div className="result-grid"><Value label="현재 홈쇼핑 방송" value={`${form.date||'일정 미정'} ${form.time} · ${form.channel||'채널 미정'} ${form.item}`}/><Field label="이 방송의 원금액 배분 · 부가세 별도 (원)"><NumberInput integer value={net} onChange={setNet}/></Field><Field label="비용 귀속월" hint="방송일·계산서 발행월과 다르면 실제 비용 반영월을 선택하세요."><input className="form-control" type="month" value={month} onChange={e=>setMonth(e.target.value)}/></Field></div>
     {detail&&<PplAiringSelector contract={c} value={{...detail,id:detail.airingId}} onChange={airing=>{const next=candidate();onChange({...next,pplLinks:next.pplLinks?.map(l=>l.contractRef===selected?{...l,...linkAiring(airing)}:l)});}}/>}
-    <div className="result-grid"><Value label="방송에 반영할 PPL 비용 · 대행료 차감 후 (원)" value={costPreview?won(costPreview.cost):'미산출'}/><Value label="이번 배분의 대행료 (원)" value={costPreview?won(costPreview.fee):'미산출'}/></div><p className="result-note">계약 원금액으로 배분합니다. 새 배분·배분금액 변경 시 대행료를 차감한 금액만 방송 비용에 반영합니다. 변경하지 않은 기존 배분은 저장된 비용을 유지합니다.</p><div className="allocation-savebar"><output>{net!==''?amount(net)>available?'배분 가능한 금액을 초과했습니다.':`이 금액으로 저장하면 PPL 잔액 ${won(available-amount(net))}`:'현재 방송에 반영할 금액을 입력하세요.'}</output><button className="primary-button" onClick={commit}>{canManage?allocation?'일정·배분 수정 저장':'PPL 일정·배분 함께 저장':'PPL 선택 부분 저장'}</button></div>
+    {canManage&&allocation&&c.tradeType==='agency'&&<label className="vat-toggle"><input type="checkbox" checked={applyAgencyCost} onChange={e=>setApplyAgencyCost(e.target.checked)}/>대행료 차감 적용 · 같은 원금액으로 저장해도 방송 비용과 이익을 변경합니다.</label>}<div className="result-grid"><Value label="방송에 반영할 PPL 비용 · 대행료 차감 후 (원)" value={costPreview?won(costPreview.cost):'미산출'}/><Value label="이번 배분의 대행료 (원)" value={costPreview?won(costPreview.fee):'미산출'}/></div><p className="result-note">계약 원금액으로 배분합니다. 새 배분·배분금액 변경 시 대행료를 차감한 금액만 방송 비용에 반영합니다. 같은 금액의 기존 배분은 차감 적용을 선택한 경우에만 변경됩니다. 선택하지 않은 배분은 저장된 비용과 이익을 유지합니다.</p><div className="allocation-savebar"><output>{net!==''?amount(net)>available?'배분 가능한 금액을 초과했습니다.':`이 금액으로 저장하면 PPL 잔액 ${won(available-amount(net))}`:'현재 방송에 반영할 금액을 입력하세요.'}</output><button className="primary-button" onClick={commit}>{canManage?allocation?'일정·배분 수정 저장':'PPL 일정·배분 함께 저장':'PPL 선택 부분 저장'}</button></div>
     {!canManage&&<p className="result-note">PPL 선택은 부분 저장할 수 있습니다. 금액 배분은 팀장 권한으로 저장합니다.</p>}
     {detail&&<details className="ppl-extra"><summary>채널·프로그램·청약사 확인</summary><p className="result-note">PPL 방송일·시간은 등록된 송출회차를 선택해 연결합니다.</p><div className="result-grid">
      <Value label="채널 · 프로그램" value={`${detail.channel} · ${detail.program||'PPL 등록 화면에서 프로그램 지정'}`}/>

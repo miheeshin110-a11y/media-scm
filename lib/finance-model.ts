@@ -4,7 +4,7 @@ import {salesCompositionChoices,compositionKey,type SalesComposition} from './sa
 import {appendCostHistory,type CostHistory} from './cost-history.ts';
 import {importCostHistory} from './cost-history-import.ts';
 import {registerGiftItem,type GiftItem} from './gift-items.ts';
-import {registrationIssues,resolveAiring} from './ppl-registration.ts';
+import {registrationIssues,resolveAiring,splitPplCost} from './ppl-registration.ts';
 import type {AgencyTerms} from './ppl-registration.ts';
 import type {PplLink} from './scm-model.ts';
 import type {Item} from './scm-model.ts';
@@ -51,6 +51,16 @@ function allocationAiring(d:Record<string,unknown>,old?:Allocation):{airing?:Ppl
 export function applyFinanceAction(current:Finance,action:FinanceAction,broadcastIds:Set<string>,now=new Date().toISOString(),uuid=()=>crypto.randomUUID(),context?:{items:Item[];actor:string}):Finance{
   const f:Finance=structuredClone(current),d=action.data;if(!d||typeof d!=='object')throw new FinanceError('입력 내용을 확인해 주세요.');
   const id=typeof d.id==='string'?d.id:'';
+  const agencyCostSelections=new Set<string>();
+  const selectAgencyCost=(value:unknown,allocation:Allocation)=>{
+    if(value!==undefined&&typeof value!=='boolean')throw new FinanceError('대행료 차감 적용 선택을 확인해 주세요.');
+    if(value===true){
+      const c=f.contracts.find(c=>c.id===allocation.contractId);
+      if(c?.tradeType!=='agency')throw new FinanceError('대행 거래의 배분에만 대행료 차감을 적용할 수 있습니다.');
+      if(!splitPplCost(c))throw new FinanceError('계약의 대행료율을 확인한 뒤 적용하세요.');
+      agencyCostSelections.add(allocation.id);
+    }
+  };
   const identity=(kind:'contract'|'allocation'|'invoice',existing?:{id:string;code:string})=>existing?{id:existing.id,code:existing.code}:{id:uuid(),code:(kind==='contract'?'PPL-'+now.slice(0,4):kind==='invoice'?'INV-'+now.slice(0,4):'ALLOC')+'-'+String(f.next[kind]++).padStart(kind==='allocation'?6:4,'0')};
   const selectedParty=()=>{const n=business(str(d,'businessNo',true));const p=partyChoices(f).find(x=>x.id===(d.partyId||partyId(n)));if(!p||p.businessNo!==n)throw new FinanceError('사업자등록번호가 확인된 거래처를 목록에서 선택해 주세요.');return {partyId:p.id,party:p.name,businessNo:p.businessNo};};
   if(action.kind==='logistics'){
@@ -130,7 +140,8 @@ export function applyFinanceAction(current:Finance,action:FinanceAction,broadcas
       if(!broadcastIds.has(broadcastId)||broadcasts.has(broadcastId))throw new FinanceError('방송을 선택하고 같은 방송의 중복 선택을 해제해 주세요.');
       if(!/^\d{4}-(0[1-9]|1[0-2])$/.test(month))throw new FinanceError('귀속월을 확인해 주세요.');
       submitted.add(rowId);broadcasts.add(broadcastId);
-      return {...identity('allocation',old),...allocationAiring(r,old),...money({...r,taxMode:'auto'}),contractId,broadcastId,month,active:true};
+      const row:Allocation={...identity('allocation',old),...allocationAiring(r,old),...money({...r,taxMode:'auto'}),contractId,broadcastId,month,active:true};
+      selectAgencyCost(r.applyAgencyCost,row);return row;
     });
     for(const old of f.allocations.filter(a=>a.active&&a.contractId===contractId))if(!rows.some(r=>r.id===old.id))old.active=false;
     for(const row of rows){const i=f.allocations.findIndex(a=>a.id===row.id);if(i<0)f.allocations.push(row);else f.allocations[i]=row;}
@@ -140,7 +151,7 @@ export function applyFinanceAction(current:Finance,action:FinanceAction,broadcas
     if(!f.contracts.some(x=>x.id===contractId)||!broadcastIds.has(broadcastId))throw new FinanceError('등록된 계약과 방송을 선택해 주세요.');
     if(!/^\d{4}-(0[1-9]|1[0-2])$/.test(month))throw new FinanceError('귀속월을 확인해 주세요.');
     if(f.allocations.some(x=>x.active&&x.id!==id&&x.contractId===contractId&&x.broadcastId===broadcastId))throw new FinanceError('같은 계약과 방송의 배분이 있습니다. 기존 내역을 수정해 주세요.');
-    const row:Allocation={...identity('allocation',old),...allocationAiring(d,old),...money({...d,taxMode:'auto'}),contractId,broadcastId,month,active:true};if(old)f.allocations[f.allocations.indexOf(old)]=row;else f.allocations.push(row);
+    const row:Allocation={...identity('allocation',old),...allocationAiring(d,old),...money({...d,taxMode:'auto'}),contractId,broadcastId,month,active:true};selectAgencyCost(d.applyAgencyCost,row);if(old)f.allocations[f.allocations.indexOf(old)]=row;else f.allocations.push(row);
   }else if(action.kind==='invoice'){
     const old=f.invoices.find(x=>x.id===id);if(id&&(!old||!old.active))throw new FinanceError('계산서를 다시 선택해 주세요.');
     if(!Array.isArray(d.links)||!d.links.length)throw new FinanceError('계약별 연결금액을 한 개 이상 입력해 주세요.');
@@ -169,7 +180,8 @@ export function applyFinanceAction(current:Finance,action:FinanceAction,broadcas
     const rows=f.allocations.filter(a=>a.active&&a.contractId===contractId),parts=broadcastCostParts(c,rows.map(a=>a.net));
     rows.forEach((a,i)=>{const old=current.allocations.find(x=>x.id===a.id);
       const changed=!old||old.net!==a.net||old.contractId!==a.contractId||old.broadcastId!==a.broadcastId;
-      if((changed||old?.broadcastCost!==undefined)&&parts[i]){a.broadcastCost=parts[i]!.cost;a.agencyFee=parts[i]!.fee;}
+      if((changed||agencyCostSelections.has(a.id))&&parts[i]){a.broadcastCost=parts[i]!.cost;a.agencyFee=parts[i]!.fee;}
+      else if(old?.broadcastCost!==undefined){a.broadcastCost=old.broadcastCost;a.agencyFee=old.agencyFee;}
       else {delete a.broadcastCost;delete a.agencyFee;}
     });
   }
