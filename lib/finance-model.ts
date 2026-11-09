@@ -53,15 +53,16 @@ function allocationAiring(d:Record<string,unknown>,old?:Allocation):{airing?:Ppl
 export function applyFinanceAction(current:Finance,action:FinanceAction,broadcastIds:Set<string>,now=new Date().toISOString(),uuid=()=>crypto.randomUUID(),context?:{items:Item[];actor:string}):Finance{
   const f:Finance=structuredClone(current),d=action.data;if(!d||typeof d!=='object')throw new FinanceError('입력 내용을 확인해 주세요.');
   const id=typeof d.id==='string'?d.id:'';
-  const agencyCostSelections=new Set<string>();
+  const agencyCostSelections=new Map<string,boolean>();
   const selectAgencyCost=(value:unknown,allocation:Allocation)=>{
     if(value!==undefined&&typeof value!=='boolean')throw new FinanceError('대행료 차감 적용 선택을 확인해 주세요.');
     if(value===true){
       const c=f.contracts.find(c=>c.id===allocation.contractId);
       if(c?.tradeType!=='agency')throw new FinanceError('대행 거래의 배분에만 대행료 차감을 적용할 수 있습니다.');
       if(!splitPplCost(c))throw new FinanceError('계약의 대행료율을 확인한 뒤 적용하세요.');
-      agencyCostSelections.add(allocation.id);
+      agencyCostSelections.set(allocation.id,true);
     }
+    if(value===false&&f.contracts.find(c=>c.id===allocation.contractId)?.tradeType==='agency')agencyCostSelections.set(allocation.id,false);
   };
   const identity=(kind:'contract'|'allocation'|'invoice',existing?:{id:string;code:string})=>existing?{id:existing.id,code:existing.code}:{id:uuid(),code:(kind==='contract'?'PPL-'+now.slice(0,4):kind==='invoice'?'INV-'+now.slice(0,4):'ALLOC')+'-'+String(f.next[kind]++).padStart(kind==='allocation'?6:4,'0')};
   const selectedParty=()=>{const n=business(str(d,'businessNo',true));const p=partyChoices(f).find(x=>x.id===(d.partyId||partyId(n)));if(!p||p.businessNo!==n)throw new FinanceError('사업자등록번호가 확인된 거래처를 목록에서 선택해 주세요.');return {partyId:p.id,party:p.name,businessNo:p.businessNo};};
@@ -182,7 +183,8 @@ export function applyFinanceAction(current:Finance,action:FinanceAction,broadcas
     const rows=f.allocations.filter(a=>a.active&&a.contractId===contractId),parts=broadcastCostParts(c,rows.map(a=>a.net));
     rows.forEach((a,i)=>{const old=current.allocations.find(x=>x.id===a.id);
       const changed=!old||old.net!==a.net||old.contractId!==a.contractId||old.broadcastId!==a.broadcastId;
-      if((changed||agencyCostSelections.has(a.id))&&parts[i]){a.broadcastCost=parts[i]!.cost;a.agencyFee=parts[i]!.fee;}
+      if(agencyCostSelections.get(a.id)===false){a.broadcastCost=a.net;a.agencyFee='0';}
+      else if((changed||agencyCostSelections.has(a.id))&&parts[i]){a.broadcastCost=parts[i]!.cost;a.agencyFee=parts[i]!.fee;}
       else if(old?.broadcastCost!==undefined){a.broadcastCost=old.broadcastCost;a.agencyFee=old.agencyFee;}
       else {delete a.broadcastCost;delete a.agencyFee;}
     });

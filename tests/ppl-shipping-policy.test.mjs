@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {applyFinanceAction,emptyFinance,allocationValues,withFinance,contractTotals} from '../lib/finance-model.ts';
-import {broadcastCostParts,previewAllocationCosts} from '../lib/ppl-broadcast-cost.ts';
+import {broadcastCostParts,previewAllocationCosts,agencyCostChecked,agencyCostChoice} from '../lib/ppl-broadcast-cost.ts';
 import {costCalculation,computedItem,compositions,costPlan,initializeShipping} from '../lib/workflow.ts';
 import {newResult} from '../lib/scm-model.ts';
 import {financeSheetRows} from '../lib/finance-sheets.ts';
@@ -13,6 +13,14 @@ const contract=(net='60000000')=>({id:'C',code:'PPL-C',name:'임시 계약',part
 const finance=()=>({...emptyFinance(),contracts:[contract()]});
 const apply=(f,rows)=>applyFinanceAction(f,{kind:'allocations',data:{contractId:'C',rows}},new Set(['A','B']),now,uuid);
 const draft=(broadcastId,net,id='')=>({id,broadcastId,net,month:'2026-11'});
+test('unchecking a saved 7 million agency allocation restores principal and preview, leaving other broadcasts untouched',()=>{
+ const f=finance();f.allocations=[{...draft('A','7000000','old-A'),code:'A',contractId:'C',tax:'700000',active:true,broadcastCost:'6300000',agencyFee:'700000'},{...draft('B','20000000','old-B'),code:'B',contractId:'C',tax:'2000000',active:true,broadcastCost:'18000000',agencyFee:'2000000'}];
+ const a={...draft('A','7000000','old-A'),key:'A'},b={...draft('B','20000000','old-B'),key:'B'};
+ assert.equal(agencyCostChecked(f.allocations,a),true);assert.equal(agencyCostChoice(f.allocations,b),undefined);
+ const selected={...a,applyAgencyCost:false},next=apply(f,[selected,b]),preview=previewAllocationCosts(f.contracts[0],f.allocations,[selected,b]);
+ assert.equal(next.allocations[0].broadcastCost,'7000000');assert.equal(next.allocations[0].agencyFee,'0');assert.equal(next.allocations[1].broadcastCost,'18000000');assert.deepEqual(preview.get('A'),{cost:'7000000',fee:'0'});
+ assert.equal(agencyCostChoice([], {...a,id:''}),false,'new unchecked agency allocations use principal');
+});
 function item(id='A'){
  const b={id,date:'2026-11-09',time:'10:00',channel:'SK',item:'임시',shortItem:'임시',owner:'검증',status:'편성확정',urgent:false,ppl:'있음',program:'',pplKind:'',price:'',target:'',rate:'',contractId:'',contractAmount:'',allocation:'0',allocationManaged:true,attribution:'',sync:'대기',calculationMode:'auto',result:newResult()};
  b.compositions=compositions(b);Object.assign(b.compositions.single,{units:'2',unitCost:'10',sellingPrice:'100',commission:'0',vatBasis:'별도'});b.compositions.double.enabled=false;
@@ -69,14 +77,14 @@ test('same principal opts in per allocation, preserving all unselected legacy an
  assert.equal(next.allocations[0].net,'40000000');assert.equal(next.allocations[0].broadcastCost,'36000000');assert.equal(next.allocations[0].agencyFee,'4000000');assert.equal(next.allocations[1].broadcastCost,'18500000');assert.equal(next.allocations[1].agencyFee,'1500000');
  assert.equal(next.allocations[0].applyAgencyCost,undefined);assert.deepEqual(contractTotals(next,'C').remaining,{net:'0',tax:'0'});
  const repeated=apply(next,rows);assert.equal(repeated.allocations[0].broadcastCost,'36000000','always deduct from principal, never deduct twice');
- const unchecked=apply(f,rows.map(r=>({...r,applyAgencyCost:false})));assert.equal(unchecked.allocations[0].broadcastCost,undefined);assert.equal(unchecked.allocations[1].broadcastCost,'18500000');
+ const unchecked=apply(f,rows.map(r=>({...r,applyAgencyCost:false})));assert.equal(unchecked.allocations[0].broadcastCost,'40000000');assert.equal(unchecked.allocations[1].broadcastCost,'20000000');
  const previews=previewAllocationCosts(f.contracts[0],f.allocations,rows.map(r=>({...r,key:r.id})));assert.equal(previews.get('old-A').cost,'36000000');assert.equal(previews.get('old-B').cost,'18500000');
 });
 test('same-amount single save and preview agree; bad opt-in types and inapplicable contracts are rejected',()=>{
  const f=finance();f.allocations=[{id:'old-A',code:'A',contractId:'C',broadcastId:'A',net:'20000000',tax:'2000000',month:'2026-11',active:true}];
  const action={kind:'allocation',data:{...draft('A','20000000','old-A'),contractId:'C',applyAgencyCost:true}};
  const next=applyFinanceAction(f,action,new Set(['A']),now,uuid);assert.equal(next.allocations[0].broadcastCost,'18000000');
- const unselected=applyFinanceAction(f,{...action,data:{...action.data,applyAgencyCost:false}},new Set(['A']),now,uuid);assert.equal(unselected.allocations[0].broadcastCost,undefined);
+ const unselected=applyFinanceAction(f,{...action,data:{...action.data,applyAgencyCost:false}},new Set(['A']),now,uuid);assert.equal(unselected.allocations[0].broadcastCost,'20000000');
  for(const value of ['true','false',1,null])assert.throws(()=>applyFinanceAction(f,{...action,data:{...action.data,applyAgencyCost:value}},new Set(['A']),now,uuid),/選択|선택/);
  assert.throws(()=>applyFinanceAction({...f,contracts:[{...f.contracts[0],tradeType:'direct'}]},action,new Set(['A']),now,uuid),/대행 거래/);
  assert.throws(()=>applyFinanceAction({...f,contracts:[{...f.contracts[0],agencyRate:''}]},action,new Set(['A']),now,uuid),/대행료율/);
@@ -93,6 +101,10 @@ test('PostgreSQL explicit same-amount application audits only the selected broad
  assert.equal(afterA.result.goodsCost,beforeA.result.goodsCost);assert.deepEqual(afterA.compositions,beforeA.compositions);assert.deepEqual(afterA.costPlan,beforeA.costPlan);assert.equal(afterA.result.pplCost,'36000000');assert.equal(Number(withFinance(afterA,saved).result.profit)-Number(beforeA.result.profit),4000000);
  assert.deepEqual(await db.prepare("SELECT payload,version FROM scm_records WHERE id='B'").first(),beforeB);
  assert.equal((await db.prepare("SELECT count(*)::int AS n FROM scm_revisions WHERE record_id='B'").first()).n,1);
- const replay=await saveFinance(db,action,1,'opt-apply','actor','hash',[]);assert.deepEqual(replay,saved);assert.equal((await db.prepare("SELECT count(*)::int AS n FROM scm_revisions WHERE record_id='A'").first()).n,2);
+ const restored=await saveFinance(db,{kind:'allocations',data:{contractId:'C',rows:[{...draft('A','40000000','old-A'),applyAgencyCost:false},draft('B','20000000','old-B')]}},saved.version,'restore-agency','actor','restore-hash',[]);
+ const restoredA=JSON.parse((await db.prepare("SELECT payload FROM scm_records WHERE id='A'").first()).payload);
+ assert.equal(restoredA.result.pplCost,'40000000');assert.equal(withFinance(restoredA,restored).result.profit,beforeA.result.profit);assert.deepEqual(restoredA.compositions,beforeA.compositions);assert.equal(restoredA.result.goodsCost,beforeA.result.goodsCost);
+ assert.deepEqual(await db.prepare("SELECT payload,version FROM scm_records WHERE id='B'").first(),beforeB);
+ const replay=await saveFinance(db,action,1,'opt-apply','actor','hash',[]);assert.deepEqual(replay,saved);assert.equal((await db.prepare("SELECT count(*)::int AS n FROM scm_revisions WHERE record_id='A'").first()).n,3);
  }finally{await db.close();}
 });
