@@ -32,6 +32,7 @@ export function applyLogisticsWorkbook(finance:Finance,raw:unknown,items:Item[],
    if(byName.length>1)throw new LogisticsError(n+': 같은 이름의 상품이 여러 개입니다. 재고 시트에 물류상품코드를 입력하세요.');
    code=byName[0]?.code||'SKU-'+uuid();
   }
+  if(l.skus.find(s=>s.code===code)?.unit==='세트')throw new LogisticsError('완제품 세트는 EA 양식으로 입력할 수 없습니다. 등록 단위에 맞는 재고 입력을 사용하세요.');
   if(codes.has(code)&&codes.get(code)!==n)throw new LogisticsError('서로 다른 품목에 같은 코드를 사용할 수 없습니다.');
   if(!l.skus.some(s=>s.code===code))l=applyLogisticsAction(l,{op:'sku',code,name:n},items,actor,now,uuid);
   names.set(n,code);codes.set(code,n);return code;

@@ -15,7 +15,7 @@ export function logisticsOutlook(item:Item,l:Logistics){
   const rate=rawRate!==''&&/^\d+(\.\d+)?$/.test(rawRate)&&Number(rawRate)<=100?Number(rawRate):null;
   const expected=requested===0?0:requested!==null&&rate===0?0:requested!==null&&rate!==null?estimated(line.plannedQuantity,rawRate,rounding):null;
   const safeExpected=expected!==null&&Number.isSafeInteger(expected)&&expected<=1e12?expected:null;
-  const bom=latestBom(l,line.sku);
+  const bom=latestBom(l,line.sku,real.slice(0,10));
   if(requested===null)issues.push(label+' 요청 세트수 미입력');
   if(rate===null&&requested!==0)issues.push(label+' 예상 전환율 미입력');
   if(!rounding&&requested!==0&&rate!==0)issues.push(label+' 수량 소수점 처리 미선택');

@@ -1,9 +1,9 @@
 import {actualDateTime,type Item} from './scm-model.ts';
 import {compositions} from './workflow.ts';
 
-export type LogisticsSku={code:string;name:string};
+export type LogisticsSku={code:string;name:string;unit?:'EA'|'세트'};
 export type BomLine={sku:string;role:'product'|'gift';quantity:number};
-export type LogisticsBom={id:string;compositionCode:string;lines:BomLine[];createdAt:string};
+export type LogisticsBom={id:string;compositionCode:string;lines:BomLine[];createdAt:string;effectiveFrom?:string;shipmentMode?:'set';sourceConfigId?:string};
 export type InventoryLine={sku:string;available:number;reservedForPlans:number};
 export type InventorySnapshot={id:string;warehouse:string;asOf:string;basis:'before-plans'|'unreserved';lines:InventoryLine[];source:string;createdAt:string};
 export type Inbound={id:string;sku:string;warehouse:string;date:string;quantity:number;confirmed:boolean;reference:string};
@@ -18,11 +18,15 @@ const qty=(v:unknown,label:string,zero=true)=>{if(!['string','number'].includes(
 const date=(v:unknown)=>{const s=text(v,'날짜',10);if(!/^\d{4}-\d{2}-\d{2}$/.test(s)||!actualDateTime(s,'00:00'))throw new LogisticsError('날짜를 확인해 주세요.');return s;};
 const total=(a:number,b:number)=>{const n=a+b;if(!Number.isSafeInteger(n)||n>1e15)throw new LogisticsError('단품 수량이 계산 한도를 초과했습니다.');return n;};
 export function preparationDate(day:string){const d=new Date(day+'T00:00:00Z');d.setUTCDate(d.getUTCDate()-7);return d.toISOString().slice(0,10);}
-export function latestBom(l:Logistics,code:string){return l.boms.filter(b=>b.compositionCode===code).at(-1);}
+export const logisticsUnit=(l:Logistics,sku:string)=>l.skus.find(s=>s.code===sku)?.unit||'EA';
+export function latestBom(l:Logistics,code:string,day?:string){
+ const rows=l.boms.filter(b=>b.compositionCode===code&&(day===undefined||!b.effectiveFrom||b.effectiveFrom<=day));
+ return day===undefined?rows.at(-1):rows.sort((a,b)=>(a.effectiveFrom||'').localeCompare(b.effectiveFrom||'' )).at(-1);
+}
 export function latestRelease(l:Logistics,broadcastId:string){return l.releases.filter(r=>r.broadcastId===broadcastId).at(-1);}
 export function logisticsFingerprint(item:Item,l:Logistics){
  const c=compositions(item);
- return JSON.stringify({id:item.id,date:item.date,time:item.time,status:item.status,urgent:Boolean(item.urgent),channel:item.channel,item:item.item,compositions:(['single','double'] as const).map(side=>({side,enabled:c[side].enabled,sku:c[side].sku,quantity:c[side].plannedQuantity,bom:latestBom(l,c[side].sku)?.id||''})),gifts:(item.gifts||[]).map(g=>({id:g.id,item:g.item,units:g.units,side:g.side}))});
+ return JSON.stringify({id:item.id,date:item.date,time:item.time,status:item.status,urgent:Boolean(item.urgent),channel:item.channel,item:item.item,compositions:(['single','double'] as const).map(side=>({side,enabled:c[side].enabled,sku:c[side].sku,quantity:c[side].plannedQuantity,bom:latestBom(l,c[side].sku,actualDateTime(item.date,item.time).slice(0,10))?.id||''})),gifts:(item.gifts||[]).map(g=>({id:g.id,item:g.item,units:g.units,side:g.side}))});
 }
 export function logisticsPlan(item:Item,l:Logistics){
  const issues:string[]=[],requirements:Requirement[]=[],bomIds:string[]=[];
@@ -34,7 +38,7 @@ export function logisticsPlan(item:Item,l:Logistics){
   for(const side of ['single','double'] as const){
    const c=cs[side];if(!c.enabled)continue;enabled++;
    const label=side==='single'?'메인':'서브';
-   const bom=latestBom(l,c.sku);
+   const bom=latestBom(l,c.sku,day);
    if(!c.sku||!bom){issues.push(label+' 판매구성의 물류 구성표를 등록하세요.');continue;}
    let n:number;try{n=qty(c.plannedQuantity,label+' 요청 세트수');}catch(e){issues.push((e as Error).message);continue;}
    bomIds.push(bom.id);
@@ -75,13 +79,17 @@ export function applyLogisticsAction(current:Logistics|undefined,d:Record<string
  if(op==='sku'){
   const code=text(d.code,'물류 상품코드',80),name=text(d.name,'품목명');
   if(l.skus.some(s=>s.code===code))throw new LogisticsError('이미 등록된 물류 상품코드입니다.');
-  l.skus.push({code,name});
+  if(d.unit!==undefined&&!['EA','세트'].includes(String(d.unit)))throw new LogisticsError('물류 상품 단위를 확인하세요.');
+  l.skus.push({code,name,...(d.unit==='세트'?{unit:'세트' as const}:{})});
  }else if(op==='bom'){
   const compositionCode=text(d.compositionCode,'판매구성 코드',80);
   if(!Array.isArray(d.lines)||!d.lines.length||d.lines.length>30)throw new LogisticsError('구성표는 1~30개 품목을 입력하세요.');
   const seen=new Set<string>();
   const lines:BomLine[]=d.lines.map(raw=>{const row=raw as Record<string,unknown>;if(!row||typeof row!=='object')throw new LogisticsError('구성표를 확인하세요.');const sku=known(row.sku),role=row.role;if(role!=='product'&&role!=='gift')throw new LogisticsError('본품/사은품 구분을 확인하세요.');const key=sku+':'+role;if(seen.has(key))throw new LogisticsError('구성표에 중복 품목이 있습니다.');seen.add(key);return {sku,role,quantity:qty(row.quantity,'세트당 단품수',false)};});
-  l.boms.push({id:uuid(),compositionCode,lines,createdAt:now});
+  const effectiveFrom=d.effectiveFrom===undefined?undefined:date(d.effectiveFrom);
+  if(d.shipmentMode!==undefined&&d.shipmentMode!=='set')throw new LogisticsError('출고 방식을 확인하세요.');
+  if(d.shipmentMode==='set'&&(lines.length!==1||lines[0].role!=='product'||logisticsUnit(l,lines[0].sku)!=='세트'))throw new LogisticsError('세트 출고는 완제품 세트 SKU 한 종류만 연결하세요. 사은품을 중복 연결할 수 없습니다.');
+  l.boms.push({id:uuid(),compositionCode,lines,createdAt:now,...(effectiveFrom?{effectiveFrom}:{}),...(d.shipmentMode==='set'?{shipmentMode:'set' as const}:{}),...(d.sourceConfigId?{sourceConfigId:text(d.sourceConfigId,'원본 구성ID',80)}:{})});
  }else if(op==='inventory'){
   const warehouse=text(d.warehouse,'창고',80),asOf=text(d.asOf,'재고 기준시각',16),basis=d.basis;
   if(!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(asOf)||!actualDateTime(asOf.slice(0,10),asOf.slice(11)))throw new LogisticsError('재고 기준시각을 한국시간으로 입력하세요.');

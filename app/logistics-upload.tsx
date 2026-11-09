@@ -16,7 +16,7 @@ export function LogisticsUpload({kind,logistics,busy,submit}:{kind:LogisticsImpo
  };
  const headers=logisticsHeaders[kind];
  return <div className="logistics-upload">
-  <p>첫 시트에 양식 제목 그대로 입력하세요. 수량은 모두 단품(EA) 기준이며, 물류 상품코드는 문자 형식으로 보관하세요.</p>
+  <p>첫 시트에 양식 제목 그대로 입력하세요. 수량은 등록된 상품 단위(EA 또는 세트) 기준이며, 물류 상품코드는 문자 형식으로 보관하세요.</p>
   <div className="finance-actions"><a className="secondary-button" download={'물류_'+kind+'_양식.csv'} href={'data:text/csv;charset=utf-8,'+encodeURIComponent('\ufeff'+headers.join(',')+'\r\n')}>입력 양식 다운로드</a><label className="secondary-button tax-file">{loading?'읽는 중…':'XLSX·CSV 선택'}<input type="file" accept=".xlsx,.csv" disabled={busy||loading} onChange={e=>{void select(e.target.files?.[0]);e.target.value=''}}/></label></div>
   {error&&<p role="alert">{error}</p>}
   {missing.length>0&&<p role="alert">미등록 물류 상품코드: {missing.slice(0,10).join(', ')}. 품목 기준정보를 먼저 등록하세요.</p>}
