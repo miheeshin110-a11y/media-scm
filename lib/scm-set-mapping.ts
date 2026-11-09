@@ -2,7 +2,7 @@ import {applyLogisticsAction,emptyLogistics,LogisticsError,logisticsUnit,type Lo
 import {salesCompositionChoices} from './sales-compositions.ts';
 import type {Finance} from './finance-model.ts';
 import type {Item} from './scm-model.ts';
-export type ScmSetMappingRow={configId:string;salesCode:string;salesName:string;setSku:string;setQuantity?:string;setSkuConfirmed?:boolean;extraSkus:string[];sourceRows:number[];sourceMode:string;use:string;review:string;note:string};
+export type ScmSetMappingRow={configId:string;salesCode:string;salesName:string;setSku:string;mainComponentSku?:string;setQuantity?:string;setSkuConfirmed?:boolean;extraSkus:string[];sourceRows:number[];sourceMode:string;use:string;review:string;note:string};
 const str=(v:unknown,max=120)=>{if(typeof v!=='string'||v.length>max)throw new LogisticsError('매핑 파일의 텍스트 항목을 확인하세요.');return v.trim();};
 export function reviewSetMappings(finance:Finance,raw:unknown){
  if(!Array.isArray(raw)||!raw.length||raw.length>1000)throw new LogisticsError('매핑 자료는 1~1,000개 구성으로 입력하세요.');
@@ -25,7 +25,8 @@ export function reviewSetMappings(finance:Finance,raw:unknown){
   if(row.use==='사용중지'||row.use==='미사용')issues.push('사용중지 구성');
   const sku=finance.logistics?.skus.find(s=>s.code===row.setSku);
   if(sku&&logisticsUnit(finance.logistics!,sku.code)!=='세트')issues.push('기존 물류코드의 단위와 불일치');
-  return {...row,setQuantity,setSkuConfirmed:r.setSkuConfirmed===true,issues};
+  if(row.salesName.includes('유기농'))issues.push('유기농 홍화씨 · 코드와 적용일 확정 전 보류');
+  return {...row,mainComponentSku:r.mainComponentSku===undefined?'':str(r.mainComponentSku,80),setQuantity,setSkuConfirmed:r.setSkuConfirmed===true,issues};
  });
  for(const row of rows){
   if(!row.setQuantity&&rows.some(other=>other.configId!==row.configId&&other.setSku===row.setSku&&other.salesCode!==row.salesCode))row.issues.push('같은 출고코드가 다른 판매구성에 반복 · 출고 배수 직접 확인 필요');
@@ -40,8 +41,21 @@ export function applyScmSetMappings(finance:Finance,data:Record<string,unknown>,
  if(!Array.isArray(data.selectedIds)||!data.selectedIds.length||data.selectedIds.length>1000||new Set(data.selectedIds).size!==data.selectedIds.length)throw new LogisticsError('연결할 구성을 선택하세요.');
  const selected=data.selectedIds.map(id=>{const row=reviewed.find(r=>r.configId===id);if(!row||row.issues.length)throw new LogisticsError((row?.salesName||'선택한 구성')+': '+(row?.issues.join(' · ')||'구성ID 확인 필요'));return row;});
  let l=structuredClone(finance.logistics||emptyLogistics());
+ if(data.correctMisclassifiedB===true){
+  const repairs=[['CFG-0012','DT00156','V00100047'],['CFG-0014','DT00187','V00100096-1']];
+  for(const [configId,salesCode,component]of repairs){
+   const row=selected.find(r=>r.configId===configId&&r.salesCode===salesCode&&r.setSku===salesCode&&r.mainComponentSku===component);
+   if(!row)throw new LogisticsError('정정은 원본 D열 세트코드와 B열 단품코드가 일치하는 기존 2건을 함께 선택하세요.');
+   const mistaken=l.boms.filter(b=>!b.correctedAt&&b.sourceConfigId===configId&&b.compositionCode===salesCode&&b.shipmentMode==='set'&&b.lines.length===1&&b.lines[0].sku===component&&b.lines[0].quantity===1);
+   if(!mistaken.length)throw new LogisticsError('정정할 기존 구성표가 변경되었습니다. 최신 자료를 확인하세요.');
+   const ids=new Set(mistaken.map(b=>b.id));
+   if(l.snapshots.some(s=>s.lines.some(r=>r.sku===component))||l.inbounds.some(r=>r.sku===component)||l.releases.some(r=>r.bomIds.some(id=>ids.has(id))||r.requirements.some(x=>x.sku===component))||l.boms.some(b=>!b.correctedAt&&!ids.has(b.id)&&b.lines.some(r=>r.sku===component)))throw new LogisticsError('해당 단품코드에 재고·입고·준비요청 또는 다른 구성이 연결되어 있어 자동 정정할 수 없습니다.');
+   for(const b of mistaken){b.correctedAt=now;b.correctionReason='B열 단품코드를 세트로 잘못 등록하여 D열 세트코드로 정정';}
+   const sku=l.skus.find(s=>s.code===component);if(sku){sku.unit='EA';sku.name='단품 '+component;}
+  }
+ }
  for(const row of selected){
-  if(!l.skus.some(s=>s.code===row.setSku))l=applyLogisticsAction(l,{op:'sku',code:row.setSku,name:'완제품 세트 '+row.setSku,unit:'세트'},items,actor,now,uuid);
+  if(!l.skus.some(s=>s.code===row.setSku))l=applyLogisticsAction(l,{op:'sku',code:row.setSku,name:row.salesName,unit:'세트'},items,actor,now,uuid);
   l=applyLogisticsAction(l,{op:'bom',compositionCode:row.salesCode,lines:[{sku:row.setSku,role:'product',quantity:Number(row.setQuantity||1)}],shipmentMode:'set',effectiveFrom:data.effectiveFrom,sourceConfigId:row.configId},items,actor,now,uuid);
  }
  return l;

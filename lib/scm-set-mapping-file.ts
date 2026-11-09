@@ -16,12 +16,13 @@ export function readScmSetMappingFile(data:Uint8Array|ArrayBuffer):ScmSetMapping
   const r=rows[i];if(!r?.slice(0,11).some(v=>text(v)))continue;
   // Formula outputs and VBA are never executed or used as mapping inputs.
   for(let c=0;c<11;c++)if(s[X.utils.encode_cell({r:i,c})]?.f)throw new LogisticsError(`${i+1}행: 자동 점검 열 외에는 수식 대신 확정 값을 입력하세요.`);
-  const [configId,code,salesName,salesCode,set]=r.map(text);
+  const [configId,code,salesName,salesCode]=r.map(text);
   if(!configId){
-   if(!parent||salesCode!==parent.salesCode||salesName!==parent.salesName||!code||set)throw new LogisticsError(`${i+1}행: 추가 구성품은 바로 위와 같은 판매구성명·참고코드를 입력하거나 별도 구성ID를 지정하세요.`);
+   if(!parent||salesCode!==parent.salesCode||salesName!==parent.salesName||!code)throw new LogisticsError(`${i+1}행: 추가 단품은 바로 위와 같은 판매구성명·D열 세트코드를 입력하세요.`);
    parent.extraSkus.push(code);parent.sourceRows.push(i+1);continue;
   }
-  parent={configId,salesCode,salesName,setSku:set||code,setSkuConfirmed:Boolean(set),extraSkus:[],sourceRows:[i+1],sourceMode:text(r[5]),use:text(r[6]),review:text(r[7]),note:text(r[10])};out.push(parent);
+  // User-confirmed semantics: D is the finished set; B contains component codes.
+  parent={configId,salesCode,salesName,setSku:salesCode,setSkuConfirmed:true,mainComponentSku:code,extraSkus:[],sourceRows:[i+1],sourceMode:text(r[5]),use:text(r[6]),review:text(r[7]),note:text(r[10])};out.push(parent);
  }
  if(!out.length)throw new LogisticsError('입력된 판매구성이 없습니다.');return out;
 }

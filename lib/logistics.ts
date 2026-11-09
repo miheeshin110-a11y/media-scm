@@ -3,7 +3,7 @@ import {compositions} from './workflow.ts';
 
 export type LogisticsSku={code:string;name:string;unit?:'EA'|'세트'};
 export type BomLine={sku:string;role:'product'|'gift';quantity:number};
-export type LogisticsBom={id:string;compositionCode:string;lines:BomLine[];createdAt:string;effectiveFrom?:string;shipmentMode?:'set';sourceConfigId?:string};
+export type LogisticsBom={id:string;compositionCode:string;lines:BomLine[];createdAt:string;effectiveFrom?:string;shipmentMode?:'set';sourceConfigId?:string;correctedAt?:string;correctionReason?:string};
 export type InventoryLine={sku:string;available:number;reservedForPlans:number};
 export type InventorySnapshot={id:string;warehouse:string;asOf:string;basis:'before-plans'|'unreserved';lines:InventoryLine[];source:string;createdAt:string};
 export type Inbound={id:string;sku:string;warehouse:string;date:string;quantity:number;confirmed:boolean;reference:string};
@@ -20,7 +20,7 @@ const total=(a:number,b:number)=>{const n=a+b;if(!Number.isSafeInteger(n)||n>1e1
 export function preparationDate(day:string){const d=new Date(day+'T00:00:00Z');d.setUTCDate(d.getUTCDate()-7);return d.toISOString().slice(0,10);}
 export const logisticsUnit=(l:Logistics,sku:string)=>l.skus.find(s=>s.code===sku)?.unit||'EA';
 export function latestBom(l:Logistics,code:string,day?:string){
- const rows=l.boms.filter(b=>b.compositionCode===code&&(day===undefined||!b.effectiveFrom||b.effectiveFrom<=day));
+ const rows=l.boms.filter(b=>!b.correctedAt&&b.compositionCode===code&&(day===undefined||!b.effectiveFrom||b.effectiveFrom<=day));
  return day===undefined?rows.at(-1):rows.sort((a,b)=>(a.effectiveFrom||'').localeCompare(b.effectiveFrom||'' )).at(-1);
 }
 export function latestRelease(l:Logistics,broadcastId:string){return l.releases.filter(r=>r.broadcastId===broadcastId).at(-1);}
