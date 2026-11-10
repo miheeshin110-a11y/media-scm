@@ -6,6 +6,7 @@ import {salesCompositionChoices} from '@/lib/sales-compositions';
 import type {Finance,FinanceAction} from '@/lib/finance-model';
 import type {Item} from '@/lib/scm-model';
 import {Field,Section} from './entry-fields';
+import {EcountInventory} from './ecount-inventory';
 import {LogisticsInventoryEntry} from './logistics-inventory-entry';
 import {LogisticsUpload} from './logistics-upload';
 import {LogisticsUnifiedUpload} from './logistics-unified-upload';
@@ -39,6 +40,7 @@ export function LogisticsWorkspace({finance,items,busy,readOnly,save,refresh,onE
  return <section className="logistics-workspace">
   <Section title="물류 SCM" note="방송팀이 저장한 내용을 받아, 지금 처리할 업무와 준비할 상품·사은품을 안내합니다. 15초마다 최신 자료를 불러옵니다."/>
   <div className="logistics-work-navigation"><div className="cost-kind-tabs">{['업무현황','재고 확인','처리 이력'].map(t=><button key={t} className={tab===t?'primary-button':'secondary-button'} aria-pressed={tab===t} onClick={()=>setTab(t)}>{t}</button>)}</div><div className="finance-actions"><button className="text-button" disabled={busy} onClick={refresh}>새로고침</button><button className={tab==='기준정보 관리'?'primary-button':'secondary-button'} onClick={()=>{setSettingsFocus('');setTab('기준정보 관리')}}>기준정보 관리</button></div></div>
+  {(tab==='업무현황'||tab==='재고 확인'||tab==='기준정보 관리'&&settingsTab==='재고·입고')&&<EcountInventory logistics={l} busy={busy} readOnly={readOnly} refresh={refresh}/>}
   {tab==='업무현황'&&<LogisticsTasks items={broadcasts} logistics={l} selectedId={selectedTask} select={setSelectedTask} busy={busy} readOnly={readOnly} submit={submit} configure={configure} edit={onEditBroadcast} history={()=>setTab('처리 이력')}/>}
   {tab==='기준정보 관리'&&<div className="logistics-settings-heading"><div><h3>처음 연결할 때 설정하는 기준정보</h3><p>상품코드·본품·사은품 구성과 재고 자료는 이곳에서 관리합니다. 설정을 마치면 업무현황으로 돌아가 준비를 이어가세요.</p></div><button className="primary-button" onClick={()=>setTab('업무현황')}>업무현황으로 돌아가기</button><div className="cost-kind-tabs">{['품목·구성','재고·입고'].map(t=><button className={settingsTab===t?'primary-button':'secondary-button'} key={t} onClick={()=>setSettingsTab(t)}>{t==='품목·구성'?'상품·사은품 구성 연결':'재고·입고 자료 관리'}</button>)}</div></div>}
   {tab==='기준정보 관리'&&settingsTab==='품목·구성'&&<><SetContentsUpload finance={finance} busy={busy||readOnly} submit={submit}/><ScmSetMappingUpload finance={finance} busy={busy||readOnly} submit={submit}/><LogisticsUnifiedUpload finance={finance} busy={busy||readOnly} submit={submit}/></>}
