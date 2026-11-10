@@ -65,3 +65,25 @@ test('three authentication failures latch the shared breaker even after an hour,
 test('truncated inventory responses reject before any SCM stock replacement',async()=>{
  const mock=transport();await assert.rejects(fetchEcountStock(ecountConfig(env()),'200','20261110',async(url,body)=>{const r=await mock.send(url,body);if(url.includes('/InventoryBalance/'))r.Data.TotalCnt=999;return r;}),/누락/);
 });
+test('login accepts the documented direct Data session and nested example, including long opaque sessions',async()=>{
+ for(const direct of [true,false]){
+  const mock=transport(),session='opaque-session-'.repeat(70);
+  const result=await fetchEcountStock(ecountConfig(env()),'200','20261110',async(url,body)=>{
+   if(url.endsWith('/OAPILogin'))return {Status:200,Errors:[],Data:{Code:'00',...(direct?{SESSION_ID:session}:{Datas:{SESSION_ID:session}})}};
+   return mock.send(url,body);
+  });assert.deepEqual(result,raw());assert.equal(mock.calls.at(-1).body.SESSION_ID,session);
+ }
+});
+test('nested login failure codes stop stock calls; parser diagnostics never reveal values',async()=>{
+ let calls=0;await assert.rejects(fetchEcountStock(ecountConfig(env()),'200','20261110',async(url)=>{
+  calls++;return url.endsWith('/Zone')?{Status:200,Data:{ZONE:'AD'}}:{Status:200,Data:{Code:'205',Message:'temporary-key-not-real'}};
+ }),/IP/);assert.equal(calls,2);
+ await assert.rejects(fetchEcountStock(ecountConfig(env()),'200','20261110',async(url)=>url.endsWith('/Zone')?{Status:200,Data:{ZONE:'AD'}}:{Status:200,Data:{Code:'00',Datas:'temporary-key-not-real',Message:'private-session'}}),e=>e.message.includes('Datas string')&&!e.message.includes('temporary-key-not-real')&&!e.message.includes('private-session'));
+});
+test('old parser cooldown is repairable once without resetting credential failure counts',async()=>{
+ const db=await store();try{
+  await db.prepare(ecountCacheDDL).run();await db.prepare("INSERT INTO scm_ecount_cache(id,next_at,auth_failures,last_error) VALUES(1,?,1,?)").bind(now+3600000,'이카운트 로그인 세션을 확인하지 못했습니다. 반복 호출을 중단했습니다.').run();
+  let calls=0;await assert.rejects(loadEcountPreview(db,env(),'200',logistics(),now,async()=>{calls++;return {Status:200,Data:{ZONE:'AD'}};}));
+  const first=calls;assert.ok(first>0);await assert.rejects(loadEcountPreview(db,env(),'200',logistics(),now+1,async()=>{calls++;return {};}),/중복 조회/);assert.equal(calls,first);
+ }finally{await db.close();}
+});

@@ -14,6 +14,9 @@ export async function loadEcountPreview(db:DB,env:Record<string,string|undefined
  const configHash=await ecountHash(JSON.stringify(config)),authHash=await ecountHash(JSON.stringify([config.company,config.user,config.key])),catalogKey=ecountCatalogKey(l);
  if(JSON.parse(catalogKey).length===0)throw new EcountError('setup','조회할 V코드 본품·사은품 구성을 먼저 연결하세요.');
  await db.prepare(ecountCacheDDL).run();await db.prepare('INSERT INTO scm_ecount_cache(id) VALUES(1) ON CONFLICT(id) DO NOTHING').run();
+ // One-time compatibility repair for the old parser's exact error, not credential errors.
+ // Preserve failure counts; a new parser failure has a different message and cannot reset again.
+ await db.prepare("UPDATE scm_ecount_cache SET next_at=LEAST(next_at,?),last_error='세션 응답 처리 수정 후 재확인 대기' WHERE id=1 AND owner='' AND lease_until<=? AND auth_failures<3 AND last_error=?").bind(now,now,'이카운트 로그인 세션을 확인하지 못했습니다. 반복 호출을 중단했습니다.').run();
  const cached=await db.prepare('SELECT config_hash,preview FROM scm_ecount_cache WHERE id=1').first<{config_hash:string;preview:string|null}>();
  if(cached?.preview&&cached.config_hash===configHash){const p=JSON.parse(cached.preview) as EcountPreview;
   if(p.warehouseCode===warehouseCode&&p.catalogKey===catalogKey&&Date.parse(p.fetchedAt)>now-600000)return {preview:p,cached:true};}
