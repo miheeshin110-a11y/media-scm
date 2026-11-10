@@ -1,5 +1,5 @@
 'use client';
-import {useEffect,useRef,useState} from 'react';
+import {useEffect,useId,useRef,useState} from 'react';
 import {previewAllocationCosts,agencyCostChecked,agencyCostChoice} from '@/lib/ppl-broadcast-cost';
 import {amount,defaultVat,contractName,type Finance,type FinanceAction,type Contract,type Money} from '@/lib/finance-model';
 import {contractChannels,type Party} from '@/lib/counterparties';
@@ -8,7 +8,7 @@ import {NumberInput} from './entry-fields';
 import {registrationIssues,resolveAiring} from '@/lib/ppl-registration';
 import {AgencyFields,PplScheduleFields} from './ppl-registration-fields';
 import {PplAiringSelector} from './ppl-airing-selector';
-import {airingSummary,pplAirings,matchesPpl} from '@/lib/ppl-airings';
+import {pplAirings,matchesPpl} from '@/lib/ppl-airings';
 import type {PplAiring} from '@/lib/ppl-airings';
 import {masterProgram} from '@/lib/ppl-master';
 import {workspaceContract} from '@/lib/ppl-contracts';
@@ -39,11 +39,49 @@ const freshContract=():Contract=>({taxMode:'auto',id:'',code:'',name:'',party:''
 export function FinanceWorkspace({finance,items,save,busy,reload,preferredContractId='',canWrite=true,canReconcile=canWrite,startNew=false,onReturn,createBroadcast}:{finance:Finance;items:Item[];save:FinanceSave;busy:boolean;reload:()=>void;preferredContractId?:string;canWrite?:boolean;canReconcile?:boolean;startNew?:boolean;createBroadcast?:CreateBroadcast;onReturn?:(id?:string)=>void}){
  const [selected,setSelected]=useState<string|null>(startNew?'':null),[tab,setTab]=useState('contract'),[query,setQuery]=useState('');
  const c=workspaceContract(finance,selected,preferredContractId);
- const filtered=finance.contracts.filter(x=>matchesPpl(x,items,query,finance));
- const choices=c&&!filtered.some(x=>x.id===c.id)?[c,...filtered]:filtered;
- return <><div className="input-toolbar finance-toolbar"><div className="finance-search"><input aria-label="PPL 날짜·시간·프로그램명 검색" className="form-control" placeholder="예: 10/22 09:30 세개의 시선" value={query} onChange={e=>setQuery(e.target.value)}/></div><div><button className="secondary-button" disabled={busy} onClick={reload}>최신 자료</button><button className="primary-button" disabled={busy||!canWrite} onClick={()=>{setSelected('');setTab('contract');setQuery('')}}>새 PPL 등록</button></div></div>
- {onReturn&&<button className="text-button" disabled={busy} onClick={()=>onReturn()}>← 작성 중인 홈쇼핑 방송으로 돌아가기</button>}<label className="record-picker finance-contract-picker"><span>등록된 PPL · {finance.contracts.length}건</span><select className="form-control" disabled={busy} value={c?.id||''} onChange={e=>setSelected(e.target.value)}><option value="">{canWrite?'새 PPL 등록':'PPL 선택'}</option>{choices.map(x=><option key={x.id} value={x.id}>{airingSummary(x,items)} · {x.code} · {contractName(x)} · {won(total(x))}</option>)}</select></label>
- {query&&!filtered.length&&<p className="result-note">검색 결과가 없습니다. 검색어를 지우면 전체 계약을 볼 수 있습니다.</p>}
+ const [pickerOpen,setPickerOpen]=useState(false);
+ const pickerId=useId();
+ const pickerButton=useRef<HTMLButtonElement>(null);
+ const choices=pickerOpen?finance.contracts.filter(x=>!query.trim()||matchesPpl(x,items,query,finance)).map(contract=>{
+  const airings=pplAirings(contract,items,finance.allocations);
+  const first=airings.find(a=>a.kind==='본방'&&a.date)||airings.find(a=>a.date);
+  return {contract,airings,order:first?first.date+' '+first.time:''};
+ }).sort((a,b)=>b.order.localeCompare(a.order)||b.contract.code.localeCompare(a.contract.code)):[];
+
+ function chooseContract(id:string){
+  setSelected(id);
+  setPickerOpen(false);
+  pickerButton.current?.focus();
+ }
+
+ return <><div className="input-toolbar finance-toolbar"><div className="finance-search"><input aria-label="PPL 방송일·프로그램·거래처·계약번호 검색" className="form-control" placeholder="방송일, 프로그램, 거래처, 계약번호 검색" value={query} onChange={e=>{setQuery(e.target.value);setPickerOpen(true)}} onKeyDown={e=>{if(e.key==='Escape')setPickerOpen(false)}}/></div><div><button className="secondary-button" disabled={busy} onClick={reload}>최신 자료</button><button className="primary-button" disabled={busy||!canWrite} onClick={()=>{setSelected('');setTab('contract');setQuery('');setPickerOpen(false)}}>새 PPL 등록</button></div></div>
+ {onReturn&&<button className="text-button" disabled={busy} onClick={()=>onReturn()}>← 작성 중인 홈쇼핑 방송으로 돌아가기</button>}
+ <section className="finance-contract-picker" aria-label="등록된 PPL" onKeyDown={e=>{
+  if(e.key==='Escape'&&pickerOpen){setPickerOpen(false);pickerButton.current?.focus();}
+ }}>
+  <button ref={pickerButton} type="button" className="form-control finance-picker-toggle" aria-expanded={pickerOpen} aria-controls={pickerId} disabled={busy} onClick={()=>setPickerOpen(!pickerOpen)}>
+   <span>등록된 PPL · {finance.contracts.length}건</span>
+   <strong>{c?[masterProgram(c,items)||c.channel||'프로그램 미등록',c.code].join(' · '):'계약 선택'}</strong>
+   <span aria-hidden="true">{pickerOpen?'▴':'▾'}</span>
+  </button>
+  <div id={pickerId} hidden={!pickerOpen}>
+   <div className="finance-picker-caption" role="status">{choices.length?(`${choices.length}건 · 방송일 최신순`):query.trim()?'검색 결과가 없습니다.':'등록된 PPL이 없습니다.'}</div>
+   {!!choices.length&&<ul className="finance-picker-list">
+    {choices.map(({contract,airings})=><li key={contract.id}>
+     <button type="button" className="finance-picker-row" aria-current={contract.id===c?.id?true:undefined} disabled={busy} onClick={()=>chooseContract(contract.id)}>
+      <span className="finance-picker-info">
+       <strong>{masterProgram(contract,items)||'프로그램 미등록'}<small>{contract.channel&&` · ${contract.channel}`}</small></strong>
+       <span className="finance-picker-airings">
+        {airings.length?airings.map(a=><span key={JSON.stringify([a.date,a.time,a.kind])}>{a.kind&&<b>{a.kind}</b>} {[a.date||'방송일 미등록',a.time].filter(Boolean).join(' ')}</span>):'방송일 미등록'}
+       </span>
+       <small>{[contract.party,contract.code].filter(Boolean).join(' · ')}</small>
+      </span>
+      <span className="finance-picker-amount"><strong>{won(total(contract))}</strong>{contract.id===c?.id&&<small>선택됨</small>}</span>
+     </button>
+    </li>)}
+   </ul>}
+  </div>
+ </section>
  <div className="input-layout finance-layout"><section className="form-panel"><div className="editor-heading"><h2>{tab==='invoice'?'계산서 승인번호·엑셀 대조':c?contractName(c):canWrite&&tab==='contract'?'① PPL 총금액 등록':'PPL 선택 필요'}</h2><small>{c?.code||'총금액 저장 → 홈쇼핑 방송 연결·배분'}</small></div>
  <div className="finance-tabs" aria-label="계약·정산 메뉴">{[['contract','① PPL 총금액'],['allocation','② 홈쇼핑 연결·배분'],['invoice','③ 계산서 번호·대조']].map(([k,label])=><button className={tab===k?'active':''} aria-pressed={tab===k} disabled={busy} key={k} onClick={()=>setTab(k)}>{label}</button>)}</div>
  <div className="drawer-body" key={tab}><p className="result-note">{tab==='invoice'?'계산서 금액을 다시 입력하지 않고, 승인번호로 홈택스 자료를 대조합니다.':c?'하나의 PPL 총금액 안에서 여러 홈쇼핑 방송에 비용을 나눕니다.':'먼저 PPL 총금액을 저장하세요. 홈쇼핑 방송은 다음 단계에서 연결합니다.'}{!canWrite?' 현재 조회 권한입니다. 등록된 실무자 계정으로 로그인하면 PPL을 등록·배분할 수 있습니다.':''}</p>
