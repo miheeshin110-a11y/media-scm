@@ -1,0 +1,17 @@
+<!doctype html><html lang="ko"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>샌드부스터 재고 · 맥북 조회 전용</title>
+<style>body{font:17px system-ui,sans-serif;background:#f3f6fa;color:#17243b;margin:0}main{max-width:960px;margin:48px auto;padding:28px;background:white;border-radius:18px}h1{font-size:28px}label{display:block;margin:18px 0 6px}input{box-sizing:border-box;width:100%;padding:13px;border:1px solid #bac7d9;border-radius:8px;font-size:17px}button{background:#0868cf;color:white;border:0;border-radius:9px;padding:14px 22px;margin-top:22px;font-size:17px;cursor:pointer}button:disabled{opacity:.5}aside{padding:14px;background:#eaf2fe;border-radius:8px}.error{color:#b33220}table{border-collapse:collapse;width:100%;margin-top:22px}th,td{text-align:left;padding:12px;border-bottom:1px solid #e3e8ef}th{background:#eaf2fe}.num{text-align:right}</style>
+<main><h1>샌드부스터 재고 · 맥북 조회 전용</h1><aside>창고 200 · 회사 와이파이에서 직접 조회합니다.<br>SCM 재고 반영·방송 수정·이카운트 전표 입력 기능은 없습니다.</aside><p>기존 운영용 인증정보를 이 로컬 화면에 직접 입력하세요. 입력값은 파일에 저장하지 않으며 조회를 시작할 때 화면에서 지웁니다. 인증키를 채팅으로 보내지 마세요.</p>
+<form id="form" autocomplete="off"><label for="company">이카운트 회사코드</label><input id="company" type="password" inputmode="numeric" autocomplete="off" required maxlength="6"><label for="user">운영 API 사용자 ID</label><input id="user" type="password" autocomplete="off" required maxlength="30"><label for="key">운영용 API 인증키</label><input id="key" type="password" autocomplete="new-password" required maxlength="100"><button id="button" type="submit">샌드부스터 재고 조회만 실행</button></form>
+<p id="status" role="status">조회 대기 중 · 유기농 홍화씨는 제외합니다.</p><section id="result"></section></main>
+<script>
+const form=document.getElementById('form'),button=document.getElementById('button'),status=document.getElementById('status'),result=document.getElementById('result');
+form.addEventListener('submit',async event=>{event.preventDefault();button.disabled=true;status.className='';status.textContent='조회 중입니다. 반복 클릭하지 마세요.';result.replaceChildren();
+let input={company:document.getElementById('company').value.trim(),user:document.getElementById('user').value.trim(),key:document.getElementById('key').value.trim()};form.reset();
+try{const pending=fetch('/query',{method:'POST',headers:{'Content-Type':'application/json','X-Local-Inventory':'1'},body:JSON.stringify(input)});input=null;const response=await pending,data=await response.json();if(!response.ok)throw Error(data.error||'조회에 실패했습니다.');
+status.textContent=`조회 성공 · ${data.warehouse} (${data.warehouseCode}) · V코드 ${data.rows.length}품목 · SCM에는 반영하지 않았습니다.`;
+const p=document.createElement('p');p.textContent=`조회 기준일 ${data.day} · 조회시각 ${new Date(data.queriedAt).toLocaleString('ko-KR')} · 유기농 홍화씨 제외`;result.append(p);
+const table=document.createElement('table'),head=document.createElement('tr');for(const label of ['V코드','이카운트 품목명','현재고']){const th=document.createElement('th');th.textContent=label;head.append(th);}table.append(head);
+for(const row of data.rows){const tr=document.createElement('tr');for(const [i,value] of [row.code,row.name,row.quantity].entries()){const td=document.createElement('td');td.textContent=value;if(i===2)td.className='num';tr.append(td);}table.append(tr);}result.append(table);
+const note=document.createElement('p');note.textContent='수량은 이카운트 품목의 등록 단위 기준입니다. 단위 변환·0 보정·재고 차감을 하지 않았습니다.';result.append(note);
+}catch(e){status.className='error';status.textContent=e.message||'조회에 실패했습니다.';}finally{input=null;button.disabled=false;}});
+</script></html>
