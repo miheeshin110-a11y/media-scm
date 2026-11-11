@@ -12,6 +12,13 @@ export function validateTaxInvoice(value:unknown):TaxInvoice{
  return {approvalNo:normalizeApproval(x.approvalNo),date:x.date,issuedDate:x.issuedDate,supplierNo:x.supplierNo,supplierName:x.supplierName,customerNo:x.customerNo,customerName:x.customerName,net:String(Number(x.net)),tax:String(Number(x.tax)),total:String(Number(x.total)),kind:x.kind,originalApprovalNo:normalizeApproval(x.originalApprovalNo),sourceFile:x.sourceFile,sourceRow:x.sourceRow};
 }
 const facts=(x:TaxInvoice)=>JSON.stringify([x.date,x.issuedDate,x.supplierNo,x.customerNo,x.net,x.tax,x.total,x.kind,x.originalApprovalNo]);
+export function pendingTaxInvoices(rows:TaxInvoice[],confirmed:TaxInvoice[]){
+ const saved=new Map(confirmed.map(row=>[normalizeApproval(row.approvalNo),row]));
+ return rows.filter(row=>{
+  const existing=saved.get(normalizeApproval(row.approvalNo));
+  return !existing||facts(existing)!==facts(row);
+ });
+}
 export function mergeTaxInvoices(current:TaxInvoice[],incoming:unknown[],now=new Date().toISOString()){
  const map=new Map(current.map(x=>[x.approvalNo,x]));let added=0,duplicates=0;
  for(const value of incoming){const row=validateTaxInvoice(value),old=map.get(row.approvalNo);if(old){if(facts(old)!==facts(row))throw new Error(displayApproval(row.approvalNo)+': 같은 승인번호에 다른 내용이 있습니다. 원본을 확인해 주세요.');duplicates++;}else{map.set(row.approvalNo,{...row,importedAt:now});added++;}}

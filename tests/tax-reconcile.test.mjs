@@ -69,3 +69,14 @@ test('accounting confirmation retains already linked approval numbers when compl
  assert.deepEqual(next.contracts[0].invoiceApprovals,[no,no2]);
  assert.equal(reconcileContract(next,next.contracts[0]).status,'대조 일치');
 });
+
+test('overlapping date exports skip confirmed approval numbers and retain new or conflicting rows',async()=>{
+ const {pendingTaxInvoices}=await import('../lib/tax-reconcile.ts');
+ const saved=sample();
+ const duplicate={...saved,approvalNo:'20260915-10260916-72352960',sourceFile:'누적조회.xls',sourceRow:12};
+ const newInvoice={...saved,approvalNo:no2,date:'2026-09-20'};
+ assert.deepEqual(pendingTaxInvoices([duplicate,newInvoice],[saved]),[newInvoice]);
+ const conflict={...duplicate,net:'10001',total:'11001'};
+ assert.deepEqual(pendingTaxInvoices([conflict],[saved]),[conflict]);
+ assert.throws(()=>mergeTaxInvoices([saved],[conflict]),/다른 내용/);
+});

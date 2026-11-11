@@ -4,7 +4,7 @@ import {useId,useRef,useState} from 'react';
 import type {Contract,Finance} from '@/lib/finance-model';
 import type {Item} from '@/lib/scm-model';
 import {airingLabel,pplAirings} from '@/lib/ppl-airings';
-import {displayApproval,invoiceRefs,prepareTaxConfirmation,type TaxInvoice} from '@/lib/tax-reconcile';
+import {displayApproval,invoiceRefs,pendingTaxInvoices,prepareTaxConfirmation,type TaxInvoice} from '@/lib/tax-reconcile';
 
 import type {FinanceSave} from './finance-entry';
 
@@ -22,6 +22,15 @@ async function fingerprint(rows:TaxInvoice[]){
 }
 
 export function TaxMatchPreview({finance,items,rows,onClose,onHandoff}:{finance:Finance;items:Item[];rows:TaxInvoice[];onClose:()=>void;onHandoff:(draft:TaxReviewDraft)=>void}){
+ const pending=pendingTaxInvoices(rows,finance.taxImports||[]);
+ const skipped=rows.length-pending.length;
+ return <>
+  {skipped>0&&<p className="result-note" role="status">이미 확정된 계산서 {skipped}건을 승인번호로 확인해 제외했습니다.</p>}
+  {pending.length>0&&<TaxMatchDialog key={JSON.stringify(pending.map(row=>row.approvalNo))} finance={finance} items={items} rows={pending} sourceRows={rows} onClose={onClose} onHandoff={onHandoff}/>}
+ </>;
+}
+
+function TaxMatchDialog({finance,items,rows,sourceRows,onClose,onHandoff}:{finance:Finance;items:Item[];rows:TaxInvoice[];sourceRows:TaxInvoice[];onClose:()=>void;onHandoff:(draft:TaxReviewDraft)=>void}){
  const dialog=useRef<HTMLDialogElement>(null);
  const titleId=useId();
  const [matches,setMatches]=useState<Matches>({});
@@ -54,7 +63,10 @@ export function TaxMatchPreview({finance,items,rows,onClose,onHandoff}:{finance:
  async function download(){
   setWorking(true);setMessage('');
   try{
-   const data={version:1,source:await fingerprint(rows),matches:Object.entries(matches).filter(([,ids])=>ids.length)};
+   const sourceIndexes=new Map(sourceRows.map((row,index)=>[row.approvalNo,index]));
+   const selected=Object.entries(matches).filter(([,ids])=>ids.length)
+    .map(([index,ids])=>[sourceIndexes.get(rows[Number(index)].approvalNo),ids]);
+   const data={version:1,source:await fingerprint(sourceRows),matches:selected};
    const url=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}));
    const link=document.createElement('a');
    link.href=url;link.download='PPL-회계-검토용.json';link.click();
@@ -172,9 +184,12 @@ export function TaxAccountingReview({finance,items,draft,save,canConfirm,busy,on
   }catch{setMessage('전달 파일을 읽지 못했습니다. 매칭에 사용한 원본 엑셀과 PPL 계약을 확인해 주세요.');}
   finally{setWorking(false);}
  }
- const selection=Object.entries(matches)
+ const draftMatches=Object.entries(matches)
   .filter(([,contractIds])=>contractIds.length)
   .map(([index,contractIds])=>({invoice:rows[Number(index)],contractIds}));
+ const unconfirmed=new Set(pendingTaxInvoices(draftMatches.map(match=>match.invoice),finance.taxImports||[]).map(row=>row.approvalNo));
+ const selection=draftMatches.filter(match=>unconfirmed.has(match.invoice.approvalNo));
+ const skipped=draftMatches.length-selection.length;
  let groups:ReturnType<typeof prepareTaxConfirmation>['groups']=[];
  let reviewError='';
  try{
@@ -199,7 +214,7 @@ export function TaxAccountingReview({finance,items,draft,save,canConfirm,busy,on
   setWorking(true);
   try{
    if(!await save({kind:'taxConfirm',data:{matches:selectedMatches}}))return;
-   const remainingMatches=Object.fromEntries(Object.entries(matches).filter(([index])=>!selectedApprovals.has(rows[Number(index)].approvalNo)));
+   const remainingMatches=Object.fromEntries(Object.entries(matches).filter(([index])=>unconfirmed.has(rows[Number(index)].approvalNo)&&!selectedApprovals.has(rows[Number(index)].approvalNo)));
    const remaining=pendingCount?{rows,matches:remainingMatches}:null;
    if(imported)setImported(remaining);
    else onDraftChange(remaining);
@@ -219,7 +234,8 @@ export function TaxAccountingReview({finance,items,draft,save,canConfirm,busy,on
   </header>
   {message&&<p role="status">{message}</p>}
   {reviewError&&<p role="alert">{reviewError}</p>}
-   {!selection.length&&<p>PPL팀이 전달한 초안이 없습니다. 원본 엑셀과 회계 전달 파일을 차례로 열어 주세요.</p>}
+  {skipped>0&&<p className="result-note" role="status">이미 확정된 계산서 {skipped}건을 승인번호로 확인해 제외했습니다.</p>}
+   {!draftMatches.length&&<p>PPL팀이 전달한 초안이 없습니다. 원본 엑셀과 회계 전달 파일을 차례로 열어 주세요.</p>}
   {groups.length>0&&<AccountingReviewList groups={groups} allocations={finance.allocations} items={items} invoiceCount={selection.length} checkedIds={checkedIds}
    onToggle={canConfirm&&!working&&!busy?(id)=>{const next=new Set(checkedIds);if(next.has(id))next.delete(id);else next.add(id);selectForConfirmation(next);}:undefined}
    onSelectAll={canConfirm&&eligible.length>0&&!working&&!busy?()=>selectForConfirmation(new Set(eligible.map(group=>group.members[0].id))):undefined}/>}
