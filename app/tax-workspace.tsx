@@ -1,15 +1,52 @@
 'use client';
-import {useState} from 'react';
+import {useEffect,useState} from 'react';
 import type {Contract,Finance} from '@/lib/finance-model';
 import type {Item} from '@/lib/scm-model';
 import {approvalValid,displayApproval,invoiceRefs,mergeTaxInvoices,normalizeApproval,parseHometaxRows,reconcileContract,type TaxInvoice} from '@/lib/tax-reconcile';
 import {TaxMatchPreview} from './tax-match-preview';
 import type {FinanceSave} from './finance-entry';
+const previewStorageKey='scm-tax-match-preview';
 const won=(n:string|number)=>Number(n).toLocaleString('ko-KR')+'원';
 type Props={finance:Finance;items:Item[];contract?:Contract;save:FinanceSave;busy:boolean;canWrite:boolean};
 export function TaxWorkspace({finance,items,contract,save,busy,canWrite}:Props){
  const [pending,setPending]=useState<TaxInvoice[]>([]),[error,setError]=useState(''),[notice,setNotice]=useState(''),[loading,setLoading]=useState(false),[filter,setFilter]=useState('전체'),[search,setSearch]=useState('');
+ const [hasSavedPreview,setHasSavedPreview]=useState(false);
  const disabled=busy||loading||!canWrite;
+ useEffect(()=>{
+  try{
+   const saved=sessionStorage.getItem(previewStorageKey);
+   if(!saved)return;
+   const {rows}=mergeTaxInvoices([],JSON.parse(saved));
+   setPending(rows);
+   setHasSavedPreview(true);
+  }catch{
+   setError('임시 보관한 목록을 열지 못했습니다. 원본 엑셀을 다시 선택해 주세요.');
+  }
+ },[]);
+
+ function keepPreview(){
+  try{
+   sessionStorage.setItem(previewStorageKey,JSON.stringify(pending));
+   setHasSavedPreview(true);
+   setError('');
+   setNotice(`계산서 ${pending.length}건을 이 탭에 임시 보관했습니다.`);
+  }catch{
+   setError('이 브라우저 탭에 목록을 임시 보관하지 못했습니다.');
+  }
+ }
+
+ function clearPreview(){
+  try{
+   sessionStorage.removeItem(previewStorageKey);
+   setHasSavedPreview(false);
+   setPending([]);
+   setError('');
+   setNotice('이 탭의 임시 목록을 지웠습니다.');
+  }catch{
+   setError('이 탭의 임시 목록을 지우지 못했습니다.');
+  }
+ }
+
  const upload=async(file:File|undefined)=>{if(!file)return;setError('');setNotice('');setPending([]);setLoading(true);try{
   if(!/\.(xls|xlsx)$/i.test(file.name)||file.size>5*1024*1024)throw new Error('5MB 이하의 홈택스 XLS 또는 XLSX 파일을 선택해 주세요.');
   const X=await import('xlsx'),book=X.read(await file.arrayBuffer(),{type:'array',cellDates:false,sheetRows:10002});let rows:TaxInvoice[]=[];
@@ -21,8 +58,12 @@ export function TaxWorkspace({finance,items,contract,save,busy,canWrite}:Props){
  const shown=groups.filter(({c,r})=>(filter==='전체'||(filter==='확인 필요'?r.status!=='대조 일치':r.status===filter))&&[c.name,...r.members.map(m=>m.name),...r.refs].join(' ').replace(/[-\s]/g,'').includes(search.replace(/[-\s]/g,'')));
  const linked=new Set(finance.contracts.flatMap(c=>invoiceRefs(finance,c))),unmatched=(finance.taxImports||[]).filter(x=>!linked.has(x.approvalNo));
  return <div className="tax-workspace">
-  <section className="tax-upload"><div><h3>계산서 매칭 미리보기</h3><p>엑셀을 열어 PPL 계약을 선택하고 회계 검토용으로 전달하세요. 작업 내용은 현재 화면에 임시로 표시됩니다.</p></div><label className="secondary-button tax-file">{loading?'엑셀 읽는 중…':'엑셀 파일 선택'}<input type="file" accept=".xls,.xlsx" disabled={loading} onChange={e=>{void upload(e.target.files?.[0]);e.target.value=''}}/></label></section>
+  <section className="tax-upload"><div><h3>계산서 매칭 미리보기</h3><p>엑셀을 열어 PPL 계약을 선택하고 회계 검토용으로 전달하세요. 목록을 임시 보관하면 같은 탭에서 새로고침해도 다시 열립니다. 계약 선택은 회계 검토 파일로 내려받을 수 있습니다.</p></div><label className="secondary-button tax-file">{loading?'엑셀 읽는 중…':'엑셀 파일 선택'}<input type="file" accept=".xls,.xlsx" disabled={loading} onChange={e=>{void upload(e.target.files?.[0]);e.target.value=''}}/></label></section>
   {error&&<p role="alert" className="tax-error">{error}</p>}{notice&&<p role="status" className="result-note">{notice}</p>}
+  {(pending.length>0||hasSavedPreview)&&<div className="finance-actions">
+   {pending.length>0&&<button className="secondary-button" disabled={loading} onClick={keepPreview}>이 탭에 목록 임시 보관</button>}
+   {hasSavedPreview&&<button className="text-button" disabled={loading} onClick={clearPreview}>임시 목록 지우기</button>}
+  </div>}
   {pending.length>0&&<TaxMatchPreview finance={finance} items={items} rows={pending} onClose={()=>{setPending([]);setNotice('')}}/>}
   <details className="tax-extra"><summary>기존 승인번호 등록 및 저장된 대조 결과</summary>
   {contract?<InvoiceReferences key={contract.id+':'+JSON.stringify(invoiceRefs(finance,contract))} finance={finance} contract={contract} save={save} disabled={disabled}/>:<p className="result-note">승인번호를 등록하려면 상단에서 PPL 계약을 선택하세요.</p>}
