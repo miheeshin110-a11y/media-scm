@@ -17,7 +17,7 @@ import {allocatedPpl} from './ppl-master.ts';
 import {computedItem} from './workflow.ts';
 import {broadcastCostParts} from './ppl-broadcast-cost.ts';
 import {partyChoices,partyId,contractChannels,ownBusinessNo,type Party} from './counterparties.ts';
-import {normalizeApproval,approvalValid,mergeTaxInvoices,type TaxInvoice} from './tax-reconcile.ts';
+import {normalizeApproval,approvalValid,mergeTaxInvoices,prepareTaxConfirmation,type TaxInvoice} from './tax-reconcile.ts';
 export type Money={net:string;tax:string;taxMode?:'auto'|'manual'};
 export const defaultVat=(net:string)=>/^\d+$/.test(net)?String(Math.floor(Number(net)/10)):'';
 export function contractName(c:{date:string;party:string;channel:string;code:string;program?:string}){return [c.party||'거래처 선택',c.channel||'채널 미정',...(c.program?[c.program]:[]),c.code||'저장 시 계약번호'].join(' · ');}
@@ -32,7 +32,7 @@ export type Allocation=Money&{broadcastCost?:string;agencyFee?:string;airing?:Pp
 export type InvoiceLink=Money&{contractId:string};
 export type Invoice=Money&{id:string;code:string;party:string;businessNo:string;partyId?:string;date:string;approvalNo:string;notes:string;active:boolean;links:InvoiceLink[];linkTaxMode?:'auto'};
 export type Finance={version:number;logistics?:Logistics;giftItems?:GiftItem[];costHistory?:CostHistory[];salesCompositions?:SalesComposition[];taxImports?:TaxInvoice[];programs?:{id:string;channel:string;name:string}[];parties?:Party[];contracts:Contract[];allocations:Allocation[];invoices:Invoice[];next:{contract:number;allocation:number;invoice:number}};
-export type FinanceAction={kind:'logistics'|'giftItem'|'costHistoryImport'|'costHistory'|'salesComposition'|'invoiceRefs'|'taxImport'|'program'|'party'|'contract'|'allocation'|'allocations'|'invoice'|'voidAllocation'|'voidInvoice';data:Record<string,unknown>};
+export type FinanceAction={kind:'logistics'|'giftItem'|'costHistoryImport'|'costHistory'|'salesComposition'|'invoiceRefs'|'taxImport'|'taxConfirm'|'program'|'party'|'contract'|'allocation'|'allocations'|'invoice'|'voidAllocation'|'voidInvoice';data:Record<string,unknown>};
 export const emptyFinance=():Finance=>({version:0,contracts:[],allocations:[],invoices:[],next:{contract:1,allocation:1,invoice:1}});
 export class FinanceError extends Error{}
 export const amount=(v:string)=>Number(v||0);
@@ -88,6 +88,13 @@ export function applyFinanceAction(current:Finance,action:FinanceAction,broadcas
   }else if(action.kind==='taxImport'){
     if(!Array.isArray(d.rows)||!d.rows.length||d.rows.length>2000)throw new FinanceError('업로드할 계산서는 1~2,000건이어야 합니다.');
     try{f.taxImports=mergeTaxInvoices(f.taxImports||[],d.rows,now).rows;}catch(e){throw new FinanceError(e instanceof Error?e.message:'계산서 내용을 확인해 주세요.');}
+  }else if(action.kind==='taxConfirm'){
+    try{
+      const {next,groups}=prepareTaxConfirmation(f,d.matches,now);
+      const issue=groups.find(group=>group.status!=='대조 일치');
+      if(issue)throw new Error('확정 전 대조 상태를 확인해 주세요. '+issue.status);
+      return {...next,version:f.version+1};
+    }catch(e){throw new FinanceError(e instanceof Error?e.message:'계산서 매칭을 확인해 주세요.');}
   }else if(action.kind==='program'){
     const channel=str(d,'channel',true),name=str(d,'name',true);
     if(!contractChannels.includes(channel))throw new FinanceError('채널을 목록에서 선택해 주세요.');

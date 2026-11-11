@@ -4,9 +4,11 @@ import {useId,useRef,useState} from 'react';
 import type {Contract,Finance} from '@/lib/finance-model';
 import type {Item} from '@/lib/scm-model';
 import {airingLabel,pplAirings} from '@/lib/ppl-airings';
-import {displayApproval,invoiceRefs,reconcileContract,type TaxInvoice} from '@/lib/tax-reconcile';
+import {displayApproval,invoiceRefs,prepareTaxConfirmation,type TaxInvoice} from '@/lib/tax-reconcile';
 
 export type TaxReviewDraft = {rows:TaxInvoice[];matches:Matches};
+import type {FinanceSave} from './finance-entry';
+
 type Matches = Record<number,string[]>;
 const won=(value:string|number)=>Number(value).toLocaleString('ko-KR')+'원';
 const company=(value:string)=>value.replace(/\D/g,'');
@@ -120,7 +122,7 @@ export function TaxMatchPreview({finance,items,rows,onClose,onHandoff}:{finance:
 }
 
 
-export function TaxAccountingReview({finance,items,draft}:{finance:Finance;items:Item[];draft:TaxReviewDraft|null}){
+export function TaxAccountingReview({finance,items,draft,save,canConfirm,busy,onClearDraft}:{finance:Finance;items:Item[];draft:TaxReviewDraft|null;save:FinanceSave;canConfirm:boolean;busy:boolean;onClearDraft:()=>void}){
  const [workbook,setWorkbook]=useState<TaxInvoice[]>([]);
  const [imported,setImported]=useState<TaxReviewDraft|null>(null);
  const [message,setMessage]=useState('');
@@ -129,7 +131,7 @@ export function TaxAccountingReview({finance,items,draft}:{finance:Finance;items
 
  async function openWorkbook(file:File|undefined){
   if(!file)return;
-  setWorking(true);setMessage('');setWorkbook([]);setImported(null);
+  setWorking(true);setMessage('');setWorkbook([]);setImported(null);setConfirming(false);
   try{
    const {readTaxWorkbook}=await import('@/lib/tax-workbook');
    setWorkbook(await readTaxWorkbook(await file.arrayBuffer(),file.name));
@@ -162,31 +164,45 @@ export function TaxAccountingReview({finance,items,draft}:{finance:Finance;items
    }
    if(!importedDraft)throw Error();
    setImported(importedDraft);
+   setConfirming(false);
   }catch{setMessage('전달 파일을 읽지 못했습니다. 매칭에 사용한 원본 엑셀과 PPL 계약을 확인해 주세요.');}
   finally{setWorking(false);}
  }
- const approvals=new Map<string,string[]>();
- for(const [row,ids] of Object.entries(matches)){
-  for(const id of ids)approvals.set(id,[...(approvals.get(id)||[]),rows[Number(row)].approvalNo]);
+ const selection=Object.entries(matches)
+  .filter(([,contractIds])=>contractIds.length)
+  .map(([index,contractIds])=>({invoice:rows[Number(index)],contractIds}));
+ let groups:ReturnType<typeof prepareTaxConfirmation>['groups']=[];
+ let reviewError='';
+ try{
+  if(selection.length)groups=prepareTaxConfirmation(finance,selection).groups;
+ }catch(error){
+  reviewError=error instanceof Error?error.message:'계산서 매칭을 확인해 주세요.';
  }
- const preview={...finance,invoices:[],taxImports:rows,contracts:finance.contracts.map(contract=>({...contract,invoiceApprovals:approvals.get(contract.id)||[]}))};
- const reviewed=new Set<string>();
- const groups=preview.contracts.flatMap(contract=>{
-  if(!approvals.has(contract.id)||reviewed.has(contract.id))return [];
-  const group=reconcileContract(preview,contract);
-  group.members.forEach(member=>reviewed.add(member.id));
-  return [group];
- });
+ const ready=groups.length>0&&groups.every(group=>group.status==='대조 일치');
+ const [confirming,setConfirming]=useState(false);
+
+ async function confirm(){
+  if(!canConfirm||!ready||working||busy)return;
+  setWorking(true);
+  try{
+   if(!await save({kind:'taxConfirm',data:{matches:selection}}))return;
+   if(imported)setImported(null);
+   else onClearDraft();
+   setConfirming(false);
+   setMessage('계산서를 확정했습니다. 구글시트 전송 상태는 구글시트 반영 상태에서 확인할 수 있습니다.');
+  }finally{setWorking(false);}
+ }
 
  return <section className="finance-card tax-workspace tax-match-review">
   <h2>PPL 세금계산서 검토</h2>
-  <p>매칭 초안의 계약 금액과 계산서 금액, 방송월별 배분을 확인합니다. 검토 내용은 운영 데이터에 저장되지 않습니다.</p>
+  <p>계약 금액과 계산서 금액, 방송월별 배분을 검토한 뒤 일치하는 계산서를 확정하세요.</p>
   <div className="finance-actions">
    <label className="secondary-button tax-file">원본 엑셀 열기<input type="file" accept=".xls,.xlsx" disabled={working} onChange={event=>{void openWorkbook(event.target.files?.[0]);event.target.value='';}}/></label>
    <label className="secondary-button tax-file">회계 전달 파일 열기<input type="file" accept=".json" disabled={working||!workbook.length} onChange={event=>{void openReview(event.target.files?.[0]);event.target.value='';}}/></label>
   </div>
   {message&&<p role="status">{message}</p>}
-   {!groups.length&&<p>PPL팀이 전달한 초안이 없습니다. 원본 엑셀과 회계 전달 파일을 차례로 열어 주세요.</p>}
+  {reviewError&&<p role="alert">{reviewError}</p>}
+   {!selection.length&&<p>PPL팀이 전달한 초안이 없습니다. 원본 엑셀과 회계 전달 파일을 차례로 열어 주세요.</p>}
    {groups.map(group=>{
     const members=new Set(group.members.map(member=>member.id));
     const months=new Map<string,number>();
@@ -205,6 +221,15 @@ export function TaxAccountingReview({finance,items,draft}:{finance:Finance;items
      <p><strong>방송월별 배분 공급가액</strong> · {months.size?[...months].sort(([a],[b])=>a.localeCompare(b)).map(([month,net])=>month+' '+won(net)).join(' / '):'등록된 방송 배분 없음'}</p>
     </article>;
    })}
+
+  {selection.length>0&&<div className="finance-actions">
+   {canConfirm?(confirming?<>
+    <span>{selection.length}건의 승인번호와 계산서 내역을 저장하고 구글시트에 반영합니다.</span>
+    <button className="primary-button" disabled={!ready||working||busy} onClick={()=>void confirm()}>확정 및 구글시트 반영</button>
+    <button className="secondary-button" disabled={working} onClick={()=>setConfirming(false)}>취소</button>
+   </>:<button className="primary-button" disabled={!ready||working||busy} onClick={()=>setConfirming(true)}>계산서 확정</button>)
+   :<p>확정은 팀장 권한이 있는 계정에서 할 수 있습니다.</p>}
+  </div>}
 
  </section>;
 }

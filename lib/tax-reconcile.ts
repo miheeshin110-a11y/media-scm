@@ -47,3 +47,45 @@ export function reconcileContract(f:Finance,c:Contract){
  const status=!refs.size?'번호 미등록':missing.length?'엑셀 확인 대기':corrected?'수정계산서 확인':wrongParty?'거래처 확인':actualNet!==expectedNet||actualTax!==expectedTax?'금액 차이':'대조 일치';
  return {status,refs:[...refs],found,missing,members,expectedNet,expectedTax,actualNet,actualTax,netGap:actualNet-expectedNet,taxGap:actualTax-expectedTax};
 }
+
+export function prepareTaxConfirmation(finance:Finance,selection:unknown,now?:string){
+ if(!Array.isArray(selection)||!selection.length||selection.length>2000){
+  throw new Error('확정할 계산서를 선택해 주세요.');
+ }
+ const selected:TaxInvoice[]=[];
+ const selectedNumbers=new Set<string>();
+ const contracts=finance.contracts.map(contract=>({...contract}));
+ const byId=new Map(contracts.map(contract=>[contract.id,contract]));
+ const touched=new Set<string>();
+
+ for(const match of selection){
+  const invoice=validateTaxInvoice(match?.invoice);
+  const ids:unknown=match?.contractIds;
+  if(!Array.isArray(ids)||!ids.length||ids.length>contracts.length||selectedNumbers.has(invoice.approvalNo)){
+   throw new Error('계산서와 연결할 PPL 계약을 확인해 주세요.');
+  }
+  selected.push(invoice);
+  selectedNumbers.add(invoice.approvalNo);
+  for(const id of new Set(ids)){
+   const contract=byId.get(id);
+   if(!contract||contract.businessNo.replace(/[-\s]/g,'')!==invoice.supplierNo){
+    throw new Error('계산서 공급자의 사업자등록번호와 PPL 계약의 사업자등록번호가 일치해야 합니다.');
+   }
+   const approvals=[...new Set([...invoiceRefs(finance,contract),invoice.approvalNo])];
+   if(approvals.length>20)throw new Error('한 계약에 연결할 수 있는 승인번호는 최대 20건입니다.');
+   contract.invoiceApprovals=approvals;
+   touched.add(contract.id);
+  }
+ }
+
+ const taxImports=mergeTaxInvoices(finance.taxImports||[],selected,now).rows;
+ const next={...finance,contracts,taxImports};
+ const groups=[];
+ for(const contract of contracts){
+  if(!touched.has(contract.id))continue;
+  const group=reconcileContract(next,contract);
+  group.members.forEach(member=>touched.delete(member.id));
+  groups.push(group);
+ }
+ return {next,groups};
+}

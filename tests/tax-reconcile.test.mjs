@@ -37,3 +37,35 @@ test('reference/import actions preserve costs, survive contract edits and export
  const sheets=financeSheetRows(f);assert.equal(sheets.length,4);assert.equal(sheets[0].values[1][15],no);assert.equal(sheets[0].values[1][16],'대조 일치');assert.equal(sheets[2].values[1][2],no);
  assert.throws(()=>applyFinanceAction(f,{kind:'taxImport',data:{rows:[{...sample(),net:'3',total:'4'}]}},new Set()),/금액/);
 });
+
+test('accounting confirmation saves selected invoices and references together, preserving prior records',()=>{
+ const selected=sample();
+ const previous={...selected,approvalNo:no2,net:'2000',tax:'200',total:'2200'};
+ const f={...emptyFinance(),contracts:[contract('A','6000','600',[]),contract('B','4000','400',[]),contract('C','2000','200',[no2])],taxImports:[previous],allocations:[
+  {id:'allocation',code:'ALLOC-1',contractId:'A',broadcastId:'broadcast',month:'2026-11',active:true,net:'3000',tax:'300',broadcastCost:'2800',agencyFee:'200'},
+ ]};
+ const before=structuredClone(f);
+ const action={kind:'taxConfirm',data:{matches:[{invoice:selected,contractIds:['A','B']}]}};
+ const next=applyFinanceAction(f,action,new Set(['broadcast']));
+ assert.deepEqual(f,before);
+ assert.deepEqual(next.allocations,before.allocations);
+ assert.deepEqual(next.contracts,[{...before.contracts[0],invoiceApprovals:[no]},{...before.contracts[1],invoiceApprovals:[no]},before.contracts[2]]);
+ assert.deepEqual(next.taxImports.map(invoice=>invoice.approvalNo),[no2,no]);
+ const sheets=financeSheetRows(next);
+ assert.equal(sheets[0].values[1][15],no);
+ assert.equal(sheets[0].values[2][16],'대조 일치');
+ assert.equal(sheets[2].values.filter(row=>row[2]===no).length,1);
+ assert.equal(applyFinanceAction(next,action,new Set(['broadcast'])).taxImports.length,2);
+ assert.throws(()=>applyFinanceAction(f,{...action,data:{matches:[{invoice:selected,contractIds:['A']}]}},new Set()),/금액 차이/);
+ assert.throws(()=>applyFinanceAction(f,{...action,data:{matches:[{invoice:{...selected,supplierNo:'1234567890'},contractIds:['A','B']}]}},new Set()),/사업자등록번호/);
+ assert.deepEqual(f,before);
+});
+
+test('accounting confirmation retains already linked approval numbers when completing a split invoice',()=>{
+ const first={...sample(),net:'6000',tax:'600',total:'6600'};
+ const second={...sample(),approvalNo:no2,net:'4000',tax:'400',total:'4400'};
+ const f={...emptyFinance(),contracts:[contract('A')],taxImports:[first]};
+ const next=applyFinanceAction(f,{kind:'taxConfirm',data:{matches:[{invoice:second,contractIds:['A']}]}},new Set());
+ assert.deepEqual(next.contracts[0].invoiceApprovals,[no,no2]);
+ assert.equal(reconcileContract(next,next.contracts[0]).status,'대조 일치');
+});
