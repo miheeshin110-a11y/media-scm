@@ -4,7 +4,7 @@ import {contractFormIssues,allocationFormIssues} from '../lib/finance-form.ts';
 import {canSaveFinance} from '../lib/finance-access.ts';
 
 test('registered inputters can register and allocate PPL without gaining accounting permissions',()=>{
- for(const kind of ['contract','program','party','allocation','allocations','voidAllocation'])assert.equal(canSaveFinance(kind,false),true);
+ for(const kind of ['contract','program','party','allocation','allocations','voidAllocation','taxConfirm'])assert.equal(canSaveFinance(kind,false),true);
  for(const kind of ['taxImport','invoiceRefs','invoice','voidInvoice','unknown'])assert.equal(canSaveFinance(kind,false),false);
  assert.equal(canSaveFinance('taxImport',true),true);
 });

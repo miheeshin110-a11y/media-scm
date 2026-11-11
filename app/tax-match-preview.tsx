@@ -71,7 +71,7 @@ function TaxMatchDialog({finance,items,rows,sourceRows,onClose,onHandoff}:{finan
    const link=document.createElement('a');
    link.href=url;link.download='PPL-회계-검토용.json';link.click();
    setTimeout(()=>URL.revokeObjectURL(url),1000);
-   setMessage('검토 파일을 받았습니다. 회계팀은 같은 원본 엑셀을 열고 검토 파일을 불러오면 됩니다.');
+   setMessage('검토 파일을 받았습니다. 같은 원본 엑셀과 함께 다시 불러올 수 있습니다.');
   }catch{setMessage('검토 파일을 만들지 못했습니다. 다시 시도해 주세요.');}
   finally{setWorking(false);}
  }
@@ -126,8 +126,8 @@ function TaxMatchDialog({finance,items,rows,sourceRows,onClose,onHandoff}:{finan
    <footer className="tax-match-footer">
     <span>{rows.length}건 중 {count}건 매칭 선택</span>
     <div className="finance-actions">
-     <button className="secondary-button" disabled={!count||working} onClick={()=>void download()}>회계 전달 파일 내려받기</button>
-     <button className="primary-button" disabled={!count} onClick={()=>{onHandoff({rows,matches});dialog.current?.close();setMessage('이 브라우저의 회계 검토 메뉴에 매칭 초안을 준비했습니다.');}}>매칭 완료 · 임시 전달</button>
+     <button className="secondary-button" disabled={!count||working} onClick={()=>void download()}>매칭 파일 내려받기</button>
+     <button className="primary-button" disabled={!count} onClick={()=>{dialog.current?.close();onHandoff({rows,matches});}}>매칭 확인으로 이동</button>
     </div>
    </footer>
   </dialog>
@@ -229,13 +229,13 @@ export function TaxAccountingReview({finance,items,draft,save,canConfirm,busy,on
    <div><h2>PPL 세금계산서 검토</h2><p>계약과 계산서의 금액 및 방송월별 배분을 확인하세요.</p></div>
    <div className="finance-actions">
    <label className="secondary-button tax-file">원본 엑셀 열기<input type="file" accept=".xls,.xlsx" disabled={working} onChange={event=>{void openWorkbook(event.target.files?.[0]);event.target.value='';}}/></label>
-   <label className="secondary-button tax-file">회계 전달 파일 열기<input type="file" accept=".json" disabled={working||!workbook.length} onChange={event=>{void openReview(event.target.files?.[0]);event.target.value='';}}/></label>
+   <label className="secondary-button tax-file">기존 매칭 파일 열기<input type="file" accept=".json" disabled={working||!workbook.length} onChange={event=>{void openReview(event.target.files?.[0]);event.target.value='';}}/></label>
   </div>
   </header>
   {message&&<p role="status">{message}</p>}
   {reviewError&&<p role="alert">{reviewError}</p>}
   {skipped>0&&<p className="result-note" role="status">이미 확정된 계산서 {skipped}건을 승인번호로 확인해 제외했습니다.</p>}
-   {!draftMatches.length&&<p>PPL팀이 전달한 초안이 없습니다. 원본 엑셀과 회계 전달 파일을 차례로 열어 주세요.</p>}
+   {!draftMatches.length&&<p>검토할 초안이 없습니다. PPL 등록·배분에서 계산서를 매칭하거나 기존 매칭 파일을 열어 주세요.</p>}
   {groups.length>0&&<AccountingReviewList groups={groups} allocations={finance.allocations} items={items} invoiceCount={selection.length} checkedIds={checkedIds}
    onToggle={canConfirm&&!working&&!busy?(id)=>{const next=new Set(checkedIds);if(next.has(id))next.delete(id);else next.add(id);selectForConfirmation(next);}:undefined}
    onSelectAll={canConfirm&&eligible.length>0&&!working&&!busy?()=>selectForConfirmation(new Set(eligible.map(group=>group.members[0].id))):undefined}/>}
