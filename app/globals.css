@@ -1002,3 +1002,40 @@ select.form-control {
   .tax-match-dialog { width:calc(100% - 16px); max-height:calc(100dvh - 16px); }
   .tax-match-header,.tax-match-tabs,.tax-match-body,.tax-match-footer { padding-inline:12px; }
 }
+
+.tax-review-header,.tax-review-save { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; }
+.tax-review-header h2,.tax-review-header p { margin:0; }
+.tax-review-header p,.tax-review-save small { color:var(--secondary); }
+.tax-review-header .finance-actions,.tax-review-save .finance-actions { margin:0; }
+.tax-review-list { margin:16px 0; min-width:0; }
+.tax-review-toolbar { display:flex; flex-wrap:wrap; align-items:end; gap:12px; margin-bottom:10px; }
+.tax-review-totals { display:flex; flex:1 1 auto; flex-wrap:wrap; gap:8px; }
+.tax-review-totals span,.tax-review-status { display:inline-block; padding:4px 8px; border-radius:6px; background:var(--surface-alt); font-size:var(--caption); white-space:nowrap; }
+.tax-review-totals span[data-tone="matched"],.tax-review-status[data-tone="matched"] { color:var(--accent); background:var(--selected); }
+.tax-review-totals span[data-tone="check"],.tax-review-status[data-tone="check"],.tax-review-comparison td[data-difference="true"] { color:#8d4200; background:#fff0da; }
+.tax-review-toolbar label { display:grid; gap:4px; font-size:var(--caption); }
+.tax-review-layout { display:grid; grid-template-columns:minmax(0,1.2fr) minmax(0,1fr); align-items:start; gap:14px; }
+.tax-review-queue { min-width:0; }
+.tax-review-table-wrap { max-height:none; background:var(--surface); }
+.tax-review-table { min-width:400px; }
+.tax-review-table td { vertical-align:middle; }
+.tax-review-table td:nth-child(n+2) { white-space:nowrap; }
+.tax-review-table tbody tr:last-child td { border-bottom:0; }
+.tax-review-table tr[data-active="true"] { background:var(--selected); }
+.tax-review-select { display:block; width:100%; text-align:left; border:0; padding:4px; background:transparent; color:inherit; cursor:pointer; }
+.tax-review-select:focus-visible { outline:2px solid var(--ring); }
+.tax-review-amount,.tax-review-comparison { font-variant-numeric:tabular-nums; }
+.tax-review-detail { border:1px solid var(--line); border-radius:10px; background:var(--surface); overflow-wrap:anywhere; }
+.tax-review-detail header { display:flex; justify-content:space-between; align-items:flex-start; gap:8px; padding:12px; }
+.tax-review-detail h3,.tax-review-detail h4,.tax-review-detail p { margin:0; }
+.tax-review-detail p,.tax-review-evidence small { color:var(--secondary); font-size:var(--caption); }
+.tax-review-comparison { width:100%; border-collapse:collapse; font-size:var(--caption); }
+.tax-review-comparison th,.tax-review-comparison td { padding:8px; border-top:1px solid var(--line); text-align:right; }
+.tax-review-comparison th:first-child { text-align:left; }
+.tax-review-comparison thead,.tax-review-comparison tbody tr:last-child { background:var(--surface-alt); }
+.tax-review-evidence { display:grid; gap:12px; padding:12px; border-top:1px solid var(--line); }
+.tax-review-evidence small,.tax-review-save small { display:block; }
+.tax-review-evidence p { margin-top:4px; }
+.tax-review-pages { display:flex; flex-wrap:wrap; gap:8px; align-items:center; justify-content:flex-end; padding-top:8px; font-size:var(--caption); }
+.tax-review-save { position:sticky; bottom:0; z-index:2; padding:12px; background:var(--surface); border:1px solid var(--line); border-radius:10px; box-shadow:0 -4px 16px rgb(0 0 0 / 7%); }
+@media(max-width:1050px) { .tax-review-layout { grid-template-columns:minmax(0,1fr); } }

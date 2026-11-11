@@ -6,8 +6,9 @@ import type {Item} from '@/lib/scm-model';
 import {airingLabel,pplAirings} from '@/lib/ppl-airings';
 import {displayApproval,invoiceRefs,prepareTaxConfirmation,type TaxInvoice} from '@/lib/tax-reconcile';
 
-export type TaxReviewDraft = {rows:TaxInvoice[];matches:Matches};
 import type {FinanceSave} from './finance-entry';
+
+export type TaxReviewDraft = {rows:TaxInvoice[];matches:Matches};
 
 type Matches = Record<number,string[]>;
 const won=(value:string|number)=>Number(value).toLocaleString('ko-KR')+'원';
@@ -193,43 +194,131 @@ export function TaxAccountingReview({finance,items,draft,save,canConfirm,busy,on
   }finally{setWorking(false);}
  }
 
- return <section className="finance-card tax-workspace tax-match-review">
-  <h2>PPL 세금계산서 검토</h2>
-  <p>계약 금액과 계산서 금액, 방송월별 배분을 검토한 뒤 일치하는 계산서를 확정하세요.</p>
-  <div className="finance-actions">
+ return <section className="tax-workspace tax-match-review">
+  <header className="tax-review-header">
+   <div><h2>PPL 세금계산서 검토</h2><p>계약과 계산서의 금액 및 방송월별 배분을 확인하세요.</p></div>
+   <div className="finance-actions">
    <label className="secondary-button tax-file">원본 엑셀 열기<input type="file" accept=".xls,.xlsx" disabled={working} onChange={event=>{void openWorkbook(event.target.files?.[0]);event.target.value='';}}/></label>
    <label className="secondary-button tax-file">회계 전달 파일 열기<input type="file" accept=".json" disabled={working||!workbook.length} onChange={event=>{void openReview(event.target.files?.[0]);event.target.value='';}}/></label>
   </div>
+  </header>
   {message&&<p role="status">{message}</p>}
   {reviewError&&<p role="alert">{reviewError}</p>}
    {!selection.length&&<p>PPL팀이 전달한 초안이 없습니다. 원본 엑셀과 회계 전달 파일을 차례로 열어 주세요.</p>}
-   {groups.map(group=>{
-    const members=new Set(group.members.map(member=>member.id));
-    const months=new Map<string,number>();
-    for(const allocation of finance.allocations){
-     if(!allocation.active||!members.has(allocation.contractId))continue;
-     const broadcast=items.find(item=>item.id===allocation.broadcastId);
-     const month=(broadcast?.result?.actualDate||broadcast?.date||'').slice(0,7)||'방송월 미등록';
-     months.set(month,(months.get(month)||0)+Number(allocation.net));
-    }
-    return <article className="sale-card" key={group.members[0].id}>
-     <h3>{group.members.map(member=>member.code+' · '+contractTitle(member)).join(' / ')}</h3>
-     <p><strong>{group.status}</strong> · 계산서 {group.found.length}건</p>
-     <p>공급가액 · 계약 {won(group.expectedNet)} / 계산서 {won(group.actualNet)} / 차이 {won(group.netGap)}</p>
-     <p>세액 · 계약 {won(group.expectedTax)} / 계산서 {won(group.actualTax)} / 차이 {won(group.taxGap)}</p>
-     {group.found.map(row=><p key={row.approvalNo}>{row.issuedDate||row.date} · {row.supplierName} · {displayApproval(row.approvalNo)}</p>)}
-     <p><strong>방송월별 배분 공급가액</strong> · {months.size?[...months].sort(([a],[b])=>a.localeCompare(b)).map(([month,net])=>month+' '+won(net)).join(' / '):'등록된 방송 배분 없음'}</p>
-    </article>;
-   })}
+  {groups.length>0&&<AccountingReviewList groups={groups} allocations={finance.allocations} items={items} invoiceCount={selection.length}/>}
 
-  {selection.length>0&&<div className="finance-actions">
-   {canConfirm?(confirming?<>
-    <span>{selection.length}건의 승인번호와 계산서 내역을 저장하고 구글시트에 반영합니다.</span>
-    <button className="primary-button" disabled={!ready||working||busy} onClick={()=>void confirm()}>확정 및 구글시트 반영</button>
+  {selection.length>0&&<footer className="tax-review-save">
+   <div><strong>{confirming?'계산서 '+selection.length+'건 저장 확인':'저장 대상 · 현재 초안 전체 '+selection.length+'건'}</strong>
+    <small>{!canConfirm?'팀장 권한이 있는 계정에서 확정할 수 있습니다.':ready?'승인번호와 계산서 내역을 구글시트에 반영합니다.':'확인 필요 항목을 해결하면 확정할 수 있습니다.'}</small>
+   </div>
+   {canConfirm&&(confirming?<div className="finance-actions">
     <button className="secondary-button" disabled={working} onClick={()=>setConfirming(false)}>취소</button>
-   </>:<button className="primary-button" disabled={!ready||working||busy} onClick={()=>setConfirming(true)}>계산서 확정</button>)
-   :<p>확정은 팀장 권한이 있는 계정에서 할 수 있습니다.</p>}
-  </div>}
+    <button className="primary-button" disabled={!ready||working||busy} onClick={()=>void confirm()}>{working?'저장 중…':'확정 및 구글시트 반영'}</button>
+   </div>:<button className="primary-button" disabled={!ready||working||busy} onClick={()=>setConfirming(true)}>계산서 확정</button>)}
+  </footer>}
 
+ </section>;
+}
+
+
+type ReviewGroup=ReturnType<typeof prepareTaxConfirmation>['groups'][number];
+const reviewPageSize=10;
+
+function AccountingReviewList({groups,allocations,items,invoiceCount}:{groups:ReviewGroup[];allocations:Finance['allocations'];items:Item[];invoiceCount:number}){
+ const [query,setQuery]=useState('');
+ const [filter,setFilter]=useState<'all'|'check'|'matched'>('all');
+ const [page,setPage]=useState(0);
+ const [selected,setSelected]=useState<string|null>(null);
+ const checkCount=groups.filter(group=>group.status!=='대조 일치').length;
+ const search=query.trim().toLowerCase().replace(/[-\s]/g,'');
+ const visible=groups.filter(group=>{
+  const matched=group.status==='대조 일치';
+  if((filter==='check'&&matched)||(filter==='matched'&&!matched))return false;
+  if(!search)return true;
+  const fields=[...group.members.flatMap(contract=>[contract.code,contractTitle(contract),contract.party]),...group.refs];
+  return fields.some(field=>field.toLowerCase().replace(/[-\s]/g,'').includes(search));
+ }).sort((a,b)=>Number(a.status==='대조 일치')-Number(b.status==='대조 일치')||a.members[0].code.localeCompare(b.members[0].code));
+ const lastPage=Math.max(0,Math.ceil(visible.length/reviewPageSize)-1);
+ const currentPage=Math.min(page,lastPage);
+ const start=currentPage*reviewPageSize;
+ const pageRows=visible.slice(start,start+reviewPageSize);
+ const active=pageRows.find(group=>group.members[0].id===selected)||pageRows[0];
+
+ return <section className="tax-review-list" aria-label="계산서 대조 목록">
+  <div className="tax-review-toolbar">
+   <div className="tax-review-totals">
+    <span>계산서 <b>{invoiceCount}</b></span>
+    <span data-tone="matched">대조 일치 <b>{groups.length-checkCount}</b></span>
+    <span data-tone={checkCount?'check':undefined}>확인 필요 <b>{checkCount}</b></span>
+   </div>
+   <label><span>대조 상태</span><select className="form-control" value={filter} onChange={event=>{setFilter(event.target.value as typeof filter);setPage(0);setSelected(null);}}>
+    <option value="all">전체</option><option value="check">확인 필요</option><option value="matched">대조 일치</option>
+   </select></label>
+   <label><span>검색</span><input className="form-control" placeholder="PPL명, 거래처, 승인번호" value={query} onChange={event=>{setQuery(event.target.value);setPage(0);setSelected(null);}}/></label>
+  </div>
+  <div className="tax-review-layout"><div className="tax-review-queue">
+  <div className="tax-table-wrap tax-review-table-wrap" role="region" aria-label="계약과 계산서 비교" tabIndex={0}>
+   <table className="tax-table tax-review-table">
+    <thead><tr><th scope="col">PPL 계약 · 거래처</th><th scope="col">계산서</th><th scope="col">공급가액</th><th scope="col">대조 상태</th></tr></thead>
+    <tbody>
+     {pageRows.map(group=>{
+      const first=group.members[0];
+      const isActive=active===group;
+      return <tr key={first.id} data-active={isActive}>
+       <td><button className="tax-review-select" aria-pressed={isActive} onClick={()=>setSelected(first.id)}><strong>{contractTitle(first)}</strong>{group.members.length>1&&' 외 '+(group.members.length-1)+'건'}<small>{first.code} · {first.party}</small></button></td>
+       <td>{group.found.length}건{group.missing.length>0&&<small>자료 없음 {group.missing.length}건</small>}</td>
+       <td className="tax-review-amount">{won(group.actualNet)}</td>
+       <td><span className="tax-review-status" data-tone={group.status==='대조 일치'?'matched':'check'}>{group.status}</span></td>
+      </tr>;
+     })}
+     {!pageRows.length&&<tr><td colSpan={4}>검색 조건에 맞는 대조 대상이 없습니다.</td></tr>}
+    </tbody>
+   </table>
+  </div>
+  <div className="tax-review-pages">
+   <span aria-live="polite">{visible.length?start+1:0}–{start+pageRows.length} / {visible.length}개 대조 대상</span>
+   {lastPage>0&&<>
+    <button className="secondary-button" disabled={currentPage===0} onClick={()=>{setPage(currentPage-1);setSelected(null);}}>이전</button>
+    <button className="secondary-button" disabled={currentPage===lastPage} onClick={()=>{setPage(currentPage+1);setSelected(null);}}>다음</button>
+   </>}
+  </div>
+  </div>
+  {active&&<AccountingReviewDetails group={active} allocations={allocations} items={items}/>}
+  </div>
+ </section>;
+}
+
+function AccountingReviewDetails({group,allocations,items}:{group:ReviewGroup;allocations:Finance['allocations'];items:Item[]}){
+ const memberIds=new Set(group.members.map(member=>member.id));
+ const months=new Map<string,number>();
+ for(const allocation of allocations){
+  if(!allocation.active||!memberIds.has(allocation.contractId))continue;
+  const broadcast=items.find(item=>item.id===allocation.broadcastId);
+  const month=(broadcast?.result?.actualDate||broadcast?.date||'').slice(0,7)||'방송월 미등록';
+  months.set(month,(months.get(month)||0)+Number(allocation.net));
+ }
+ const first=group.members[0];
+ return <section className="tax-review-detail" aria-label="선택한 계약 대조 상세">
+  <header><div><h3>{contractTitle(first)}{group.members.length>1&&' 외 '+(group.members.length-1)+'건'}</h3><p>{first.code} · {first.party}</p></div>
+   <span className="tax-review-status" data-tone={group.status==='대조 일치'?'matched':'check'}>{group.status}</span>
+  </header>
+  <table className="tax-review-comparison">
+   <thead><tr><th scope="col">금액 대조</th><th scope="col">공급가액</th><th scope="col">세액</th></tr></thead>
+   <tbody>
+    <tr><th scope="row">PPL 계약</th><td>{won(group.expectedNet)}</td><td>{won(group.expectedTax)}</td></tr>
+    <tr><th scope="row">계산서</th><td>{won(group.actualNet)}</td><td>{won(group.actualTax)}</td></tr>
+    <tr><th scope="row">차이</th><td data-difference={group.netGap!==0}>{won(group.netGap)}</td><td data-difference={group.taxGap!==0}>{won(group.taxGap)}</td></tr>
+   </tbody>
+  </table>
+  <div className="tax-review-evidence">
+   <div><h4>계산서 발행일 · 승인번호</h4>
+    {group.found.map(row=><p key={row.approvalNo}>{row.issuedDate||row.date}<small>{displayApproval(row.approvalNo)}</small></p>)}
+    {group.missing.map(number=><p key={number}>{displayApproval(number)} · 자료 없음</p>)}
+   </div>
+   <div><h4>방송월별 배분 공급가액</h4>
+    {months.size?[...months].sort(([a],[b])=>a.localeCompare(b)).map(([month,net])=><p key={month}>{month} · {won(net)}</p>):<p>등록된 방송 배분 없음</p>}
+   </div>
+   {group.members.length>1&&<div><h4>함께 연결된 계약</h4>{group.members.map(member=><p key={member.id}>{member.code} · {contractTitle(member)}</p>)}</div>}
+  </div>
  </section>;
 }
