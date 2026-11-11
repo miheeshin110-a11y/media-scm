@@ -15,6 +15,7 @@ import {workspaceContract} from '@/lib/ppl-contracts';
 import type {Item} from '@/lib/scm-model';
 import {QuickBroadcastForm,type CreateBroadcast} from './quick-broadcast';
 import {addCreatedBroadcast,type AllocationDraft} from '@/lib/allocation-draft';
+import type {TaxReviewDraft} from './tax-match-preview';
 import {TaxWorkspace} from './tax-workspace';
 import {contractFormIssues,allocationFormIssues} from '@/lib/finance-form';
 import {allocationTraceCode} from '@/lib/ppl-allocation-code';
@@ -36,7 +37,7 @@ function MoneyFields({value,onChange}:{value:Money;onChange:(k:'net'|'tax'|'taxM
 
 type Shared={finance:Finance;items:Item[];save:FinanceSave;busy:boolean;createBroadcast?:CreateBroadcast;onDefer?:()=>void};
 const freshContract=():Contract=>({taxMode:'auto',id:'',code:'',name:'',party:'',businessNo:'',channel:'',approvalNo:'',date:'',net:'',tax:'',notes:'',airings:[{id:'initial-airing',date:'',time:'',kind:'본방'}]});
-export function FinanceWorkspace({finance,items,save,busy,reload,preferredContractId='',canWrite=true,canReconcile=canWrite,startNew=false,onReturn,createBroadcast}:{finance:Finance;items:Item[];save:FinanceSave;busy:boolean;reload:()=>void;preferredContractId?:string;canWrite?:boolean;canReconcile?:boolean;startNew?:boolean;createBroadcast?:CreateBroadcast;onReturn?:(id?:string)=>void}){
+export function FinanceWorkspace({finance,items,save,busy,reload,preferredContractId='',canWrite=true,canReconcile=canWrite,startNew=false,onReturn,createBroadcast,onTaxHandoff}:{finance:Finance;items:Item[];save:FinanceSave;busy:boolean;reload:()=>void;onTaxHandoff:(draft:TaxReviewDraft)=>void;preferredContractId?:string;canWrite?:boolean;canReconcile?:boolean;startNew?:boolean;createBroadcast?:CreateBroadcast;onReturn?:(id?:string)=>void}){
  const [selected,setSelected]=useState<string|null>(startNew?'':null),[tab,setTab]=useState('contract'),[query,setQuery]=useState('');
  const c=workspaceContract(finance,selected,preferredContractId);
  const [pickerOpen,setPickerOpen]=useState(false);
@@ -83,9 +84,9 @@ export function FinanceWorkspace({finance,items,save,busy,reload,preferredContra
   </div>
  </section>
  <div className="input-layout finance-layout"><section className="form-panel"><div className="editor-heading"><h2>{tab==='invoice'?'계산서 승인번호·엑셀 대조':c?contractName(c):canWrite&&tab==='contract'?'① PPL 총금액 등록':'PPL 선택 필요'}</h2><small>{c?.code||'총금액 저장 → 홈쇼핑 방송 연결·배분'}</small></div>
- <div className="finance-tabs" aria-label="계약·정산 메뉴">{[['contract','① PPL 총금액'],['allocation','② 홈쇼핑 연결·배분'],['invoice','③ 계산서 번호·대조']].map(([k,label])=><button className={tab===k?'active':''} aria-pressed={tab===k} disabled={busy} key={k} onClick={()=>setTab(k)}>{label}</button>)}</div>
+ <div className="finance-tabs" aria-label="계약·정산 메뉴">{[['contract','① PPL 총금액'],['allocation','② 홈쇼핑 연결·배분'],['invoice','③ 계산서 매칭']].map(([k,label])=><button className={tab===k?'active':''} aria-pressed={tab===k} disabled={busy} key={k} onClick={()=>setTab(k)}>{label}</button>)}</div>
  <div className="drawer-body" key={tab}><p className="result-note">{tab==='invoice'?'계산서 금액을 다시 입력하지 않고, 승인번호로 홈택스 자료를 대조합니다.':c?'하나의 PPL 총금액 안에서 여러 홈쇼핑 방송에 비용을 나눕니다.':'먼저 PPL 총금액을 저장하세요. 홈쇼핑 방송은 다음 단계에서 연결합니다.'}{!canWrite?' 현재 조회 권한입니다. 등록된 실무자 계정으로 로그인하면 PPL을 등록·배분할 수 있습니다.':''}</p>
- {tab==='invoice'?<TaxWorkspace finance={finance} items={items} contract={c} save={save} busy={busy} canWrite={canReconcile}/>:!c&&(tab!=='contract'||!canWrite)?<div className="result-empty"><h3>{finance.contracts.length?'관리할 계약을 선택해 주세요.':'등록된 계약이 없습니다.'}</h3><p>{finance.contracts.length?'상단에서 등록된 PPL을 선택하면 연결된 방송과 배분금액을 확인할 수 있습니다.':'① PPL 총금액 탭에서 등록을 먼저 완료해 주세요.'}</p>{!!finance.contracts.length&&<button className="primary-button" onClick={()=>{setSelected(null);setQuery('')}}>최근 계약 열기</button>}{canWrite&&<button className="secondary-button" onClick={()=>setTab('contract')}>새 계약 등록</button>}</div>:<fieldset className="finance-fields" disabled={busy||!canWrite}>
+ {tab==='invoice'?<TaxWorkspace onHandoff={onTaxHandoff} finance={finance} items={items} contract={c} save={save} busy={busy} canWrite={canReconcile}/>:!c&&(tab!=='contract'||!canWrite)?<div className="result-empty"><h3>{finance.contracts.length?'관리할 계약을 선택해 주세요.':'등록된 계약이 없습니다.'}</h3><p>{finance.contracts.length?'상단에서 등록된 PPL을 선택하면 연결된 방송과 배분금액을 확인할 수 있습니다.':'① PPL 총금액 탭에서 등록을 먼저 완료해 주세요.'}</p>{!!finance.contracts.length&&<button className="primary-button" onClick={()=>{setSelected(null);setQuery('')}}>최근 계약 열기</button>}{canWrite&&<button className="secondary-button" onClick={()=>setTab('contract')}>새 계약 등록</button>}</div>:<fieldset className="finance-fields" disabled={busy||!canWrite}>
  {tab==='contract'&&c&&!finance.allocations.some(a=>a.active&&a.contractId===c.id)&&<div className="ppl-pending" role="status"><strong>PPL 등록 완료 · 홈쇼핑 연결 대기</strong><p>총금액과 송출일정은 저장되어 있습니다. 홈쇼핑이 정해지면 ② 홈쇼핑 연결·배분에서 이어서 진행하세요.</p></div>}
  {tab==='contract'&&<ContractEditor items={items} key={c?.id||'new'} finance={finance} contract={c} save={save} saveLabel={startNew&&onReturn?'PPL 등록 후 작성하던 방송으로 돌아가기':undefined} onSaved={id=>{if(startNew&&onReturn){onReturn(id);return;}setSelected(id);setQuery('');setTab('allocation')}}/>}
  {tab==='allocation'&&c&&<AllocationEditor key={c.id+':'+finance.version} finance={finance} items={items} save={save} busy={busy} contractId={c.id} createBroadcast={createBroadcast} onDefer={()=>setTab('contract')}/>}

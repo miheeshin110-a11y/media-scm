@@ -6,6 +6,7 @@ import type {Item} from '@/lib/scm-model';
 import {airingLabel,pplAirings} from '@/lib/ppl-airings';
 import {displayApproval,invoiceRefs,reconcileContract,type TaxInvoice} from '@/lib/tax-reconcile';
 
+export type TaxReviewDraft = {rows:TaxInvoice[];matches:Matches};
 type Matches = Record<number,string[]>;
 const won=(value:string|number)=>Number(value).toLocaleString('ko-KR')+'원';
 const company=(value:string)=>value.replace(/\D/g,'');
@@ -17,13 +18,12 @@ async function fingerprint(rows:TaxInvoice[]){
  return Array.from(new Uint8Array(bytes),byte=>byte.toString(16).padStart(2,'0')).join('');
 }
 
-export function TaxMatchPreview({finance,items,rows,sourceRows,onClose}:{finance:Finance;items:Item[];rows:TaxInvoice[];sourceRows:TaxInvoice[];onClose:()=>void}){
+export function TaxMatchPreview({finance,items,rows,onClose,onHandoff}:{finance:Finance;items:Item[];rows:TaxInvoice[];onClose:()=>void;onHandoff:(draft:TaxReviewDraft)=>void}){
  const dialog=useRef<HTMLDialogElement>(null);
  const titleId=useId();
  const [matches,setMatches]=useState<Matches>({});
  const [index,setIndex]=useState(0);
  const [query,setQuery]=useState('');
- const [review,setReview]=useState(false);
  const [message,setMessage]=useState('');
  const [working,setWorking]=useState(false);
  const invoice=rows[index];
@@ -39,18 +39,6 @@ export function TaxMatchPreview({finance,items,rows,sourceRows,onClose}:{finance
    : supplier||linked.includes(contract)
  )).sort((a,b)=>Number(b.supplier&&b.amount)-Number(a.supplier&&a.amount));
 
- const approvals=new Map<string,string[]>();
- for(const [row,ids] of Object.entries(matches)){
-  for(const id of ids)approvals.set(id,[...(approvals.get(id)||[]),rows[Number(row)].approvalNo]);
- }
- const preview={...finance,taxImports:rows,contracts:finance.contracts.map(contract=>({...contract,invoiceApprovals:approvals.get(contract.id)||[]}))};
- const reviewed=new Set<string>();
- const groups=preview.contracts.flatMap(contract=>{
-  if(!approvals.has(contract.id)||reviewed.has(contract.id))return [];
-  const group=reconcileContract(preview,contract);
-  group.members.forEach(member=>reviewed.add(member.id));
-  return [group];
- });
  const count=Object.values(matches).filter(ids=>ids.length>0).length;
 
  function toggle(id:string){
@@ -73,36 +61,10 @@ export function TaxMatchPreview({finance,items,rows,sourceRows,onClose}:{finance
   finally{setWorking(false);}
  }
 
- async function openReview(file:File|undefined){
-  if(!file)return;
-  setWorking(true);setMessage('');
-  try{
-   if(file.size>1024*1024)throw Error();
-   const data=JSON.parse(await file.text());
-   if(data.version!==1||!Array.isArray(data.matches))throw Error();
-   const currentSource=data.source===await fingerprint(rows);
-   if(!currentSource&&data.source!==await fingerprint(sourceRows))throw Error();
-   const indexedRows=currentSource?rows:sourceRows;
-   const visibleIndex=new Map(rows.map((invoice,index)=>[invoice.approvalNo,index]));
-   const ids=new Set(finance.contracts.map(contract=>contract.id));
-   const next:Matches={};
-   for(const entry of data.matches){
-    if(!Array.isArray(entry)||entry.length!==2)throw Error();
-    const [row,contracts]=entry;
-    if(!Number.isInteger(row)||row<0||row>=indexedRows.length||!Array.isArray(contracts)||!contracts.length)throw Error();
-    const index=visibleIndex.get(indexedRows[row].approvalNo);
-    if(index===undefined)continue;
-    if(index in next||contracts.some(id=>!ids.has(id)))throw Error();
-    next[index]=[...new Set<string>(contracts)];
-   }
-   setMatches(next);setReview(true);
-  }catch{setMessage('검토 파일을 읽지 못했습니다. 매칭에 사용한 원본 엑셀과 계약을 확인해 주세요.');}
-  finally{setWorking(false);}
- }
-
  return <>
   <section className="tax-match-launch" aria-label="계산서 매칭 미리보기">
    <div><strong>{invoice.supplierName||invoice.supplierNo}</strong><small>거래처 계산서 {rows.length}건 · 매칭 선택 {count}건</small></div>
+   {message&&<p role="status">{message}</p>}
    <div className="finance-actions">
     <button className="text-button" onClick={onClose}>목록 닫기</button>
     <button className="primary-button" onClick={()=>dialog.current?.showModal()}>계산서 매칭 열기</button>
@@ -113,36 +75,8 @@ export function TaxMatchPreview({finance,items,rows,sourceRows,onClose}:{finance
     <div><h2 id={titleId}>계산서 매칭</h2><small>{invoice.supplierName||invoice.supplierNo} · {rows.length}건</small></div>
     <button autoFocus className="text-button" onClick={()=>dialog.current?.close()}>닫기</button>
    </header>
-   <div className="tax-match-tabs">
-    <button className={review?'secondary-button':'primary-button'} aria-pressed={!review} onClick={()=>setReview(false)}>PPL 후보 매칭</button>
-    <button className={review?'primary-button':'secondary-button'} aria-pressed={review} onClick={()=>setReview(true)}>회계 검토</button>
-   </div>
    <div className="tax-match-body">
-  {review?<div className="tax-match-review">
-   <div className="finance-actions">
-    <button className="secondary-button" disabled={!count||working} onClick={()=>void download()}>회계 검토 파일 내려받기</button>
-    <label className="secondary-button tax-file">회계 검토 파일 열기<input type="file" accept=".json" disabled={working} onChange={event=>{void openReview(event.target.files?.[0]);event.target.value='';}}/></label>
-   </div>
-   {!groups.length&&<p>검토할 계약을 선택하거나 같은 원본 엑셀의 검토 파일을 열어 주세요.</p>}
-   {groups.map(group=>{
-    const members=new Set(group.members.map(member=>member.id));
-    const months=new Map<string,number>();
-    for(const allocation of finance.allocations){
-     if(!allocation.active||!members.has(allocation.contractId))continue;
-     const broadcast=items.find(item=>item.id===allocation.broadcastId);
-     const month=(broadcast?.result?.actualDate||broadcast?.date||'').slice(0,7)||'방송월 미등록';
-     months.set(month,(months.get(month)||0)+Number(allocation.net));
-    }
-    return <article className="sale-card" key={group.members[0].id}>
-     <h3>{group.members.map(member=>member.code+' · '+contractTitle(member)).join(' / ')}</h3>
-     <p><strong>{group.status}</strong> · 계산서 {group.found.length}건</p>
-     <p>공급가액 · 계약 {won(group.expectedNet)} / 계산서 {won(group.actualNet)} / 차이 {won(group.netGap)}</p>
-     <p>세액 · 계약 {won(group.expectedTax)} / 계산서 {won(group.actualTax)} / 차이 {won(group.taxGap)}</p>
-     {group.found.map(row=><p key={row.approvalNo}>{row.issuedDate||row.date} · {row.supplierName} · {displayApproval(row.approvalNo)}</p>)}
-     <p><strong>방송월별 배분 공급가액</strong> · {months.size?[...months].sort(([a],[b])=>a.localeCompare(b)).map(([month,net])=>month+' '+won(net)).join(' / '):'등록된 방송 배분 없음'}</p>
-    </article>;
-   })}
-  </div>:<div className="tax-match-columns">
+  <div className="tax-match-columns">
    <div>
     <h3>계산서 선택</h3>
     <ul className="tax-match-invoices">{rows.map((row,n)=><li key={row.approvalNo}>
@@ -171,15 +105,106 @@ export function TaxMatchPreview({finance,items,rows,sourceRows,onClose}:{finance
      <span>{won(contract.net)}<small>세액 {won(contract.tax)}</small></span>
     </label>)}</div>
    </div>
-  </div>}
+  </div>
   {message&&<p role="status">{message}</p>}
    </div>
    <footer className="tax-match-footer">
     <span>{rows.length}건 중 {count}건 매칭 선택</span>
-    {review
-     ? <button className="secondary-button" onClick={()=>setReview(false)}>매칭으로 돌아가기</button>
-     : <button className="primary-button" onClick={()=>setReview(true)}>회계 검토 보기</button>}
+    <div className="finance-actions">
+     <button className="secondary-button" disabled={!count||working} onClick={()=>void download()}>회계 전달 파일 내려받기</button>
+     <button className="primary-button" disabled={!count} onClick={()=>{onHandoff({rows,matches});dialog.current?.close();setMessage('이 브라우저의 회계 검토 메뉴에 매칭 초안을 준비했습니다.');}}>매칭 완료 · 임시 전달</button>
+    </div>
    </footer>
   </dialog>
  </>;
+}
+
+
+export function TaxAccountingReview({finance,items,draft}:{finance:Finance;items:Item[];draft:TaxReviewDraft|null}){
+ const [workbook,setWorkbook]=useState<TaxInvoice[]>([]);
+ const [imported,setImported]=useState<TaxReviewDraft|null>(null);
+ const [message,setMessage]=useState('');
+ const [working,setWorking]=useState(false);
+ const {rows,matches}=imported||draft||{rows:[],matches:{}};
+
+ async function openWorkbook(file:File|undefined){
+  if(!file)return;
+  setWorking(true);setMessage('');setWorkbook([]);setImported(null);
+  try{
+   const {readTaxWorkbook}=await import('@/lib/tax-workbook');
+   setWorkbook(await readTaxWorkbook(await file.arrayBuffer(),file.name));
+   setMessage('원본 엑셀을 읽었습니다. 회계 전달 파일을 선택하세요.');
+  }catch{setMessage('원본 엑셀을 읽지 못했습니다.');}
+  finally{setWorking(false);}
+ }
+
+ async function openReview(file:File|undefined){
+  if(!file)return;
+  setWorking(true);setMessage('');
+  try{
+   if(file.size>1024*1024)throw Error();
+   const data=JSON.parse(await file.text());
+   if(data.version!==1||!Array.isArray(data.matches)||!data.matches.length)throw Error();
+   const ids=new Map(finance.contracts.map(contract=>[contract.id,contract]));
+   let importedDraft:TaxReviewDraft|null=null;
+   for(const supplier of new Set(workbook.map(row=>row.supplierNo))){
+    const scoped=workbook.filter(row=>row.supplierNo===supplier);
+    if(data.source!==await fingerprint(scoped))continue;
+    const next:Matches={};
+    for(const entry of data.matches){
+     if(!Array.isArray(entry)||entry.length!==2)throw Error();
+     const [index,contracts]=entry;
+     if(!Number.isInteger(index)||index<0||index>=scoped.length||index in next||!Array.isArray(contracts)||!contracts.length||contracts.some(id=>company(ids.get(id)?.businessNo||'')!==supplier))throw Error();
+     next[index]=[...new Set<string>(contracts)];
+    }
+    importedDraft={rows:scoped,matches:next};
+    break;
+   }
+   if(!importedDraft)throw Error();
+   setImported(importedDraft);
+  }catch{setMessage('전달 파일을 읽지 못했습니다. 매칭에 사용한 원본 엑셀과 PPL 계약을 확인해 주세요.');}
+  finally{setWorking(false);}
+ }
+ const approvals=new Map<string,string[]>();
+ for(const [row,ids] of Object.entries(matches)){
+  for(const id of ids)approvals.set(id,[...(approvals.get(id)||[]),rows[Number(row)].approvalNo]);
+ }
+ const preview={...finance,invoices:[],taxImports:rows,contracts:finance.contracts.map(contract=>({...contract,invoiceApprovals:approvals.get(contract.id)||[]}))};
+ const reviewed=new Set<string>();
+ const groups=preview.contracts.flatMap(contract=>{
+  if(!approvals.has(contract.id)||reviewed.has(contract.id))return [];
+  const group=reconcileContract(preview,contract);
+  group.members.forEach(member=>reviewed.add(member.id));
+  return [group];
+ });
+
+ return <section className="finance-card tax-workspace tax-match-review">
+  <h2>PPL 세금계산서 검토</h2>
+  <p>매칭 초안의 계약 금액과 계산서 금액, 방송월별 배분을 확인합니다. 검토 내용은 운영 데이터에 저장되지 않습니다.</p>
+  <div className="finance-actions">
+   <label className="secondary-button tax-file">원본 엑셀 열기<input type="file" accept=".xls,.xlsx" disabled={working} onChange={event=>{void openWorkbook(event.target.files?.[0]);event.target.value='';}}/></label>
+   <label className="secondary-button tax-file">회계 전달 파일 열기<input type="file" accept=".json" disabled={working||!workbook.length} onChange={event=>{void openReview(event.target.files?.[0]);event.target.value='';}}/></label>
+  </div>
+  {message&&<p role="status">{message}</p>}
+   {!groups.length&&<p>PPL팀이 전달한 초안이 없습니다. 원본 엑셀과 회계 전달 파일을 차례로 열어 주세요.</p>}
+   {groups.map(group=>{
+    const members=new Set(group.members.map(member=>member.id));
+    const months=new Map<string,number>();
+    for(const allocation of finance.allocations){
+     if(!allocation.active||!members.has(allocation.contractId))continue;
+     const broadcast=items.find(item=>item.id===allocation.broadcastId);
+     const month=(broadcast?.result?.actualDate||broadcast?.date||'').slice(0,7)||'방송월 미등록';
+     months.set(month,(months.get(month)||0)+Number(allocation.net));
+    }
+    return <article className="sale-card" key={group.members[0].id}>
+     <h3>{group.members.map(member=>member.code+' · '+contractTitle(member)).join(' / ')}</h3>
+     <p><strong>{group.status}</strong> · 계산서 {group.found.length}건</p>
+     <p>공급가액 · 계약 {won(group.expectedNet)} / 계산서 {won(group.actualNet)} / 차이 {won(group.netGap)}</p>
+     <p>세액 · 계약 {won(group.expectedTax)} / 계산서 {won(group.actualTax)} / 차이 {won(group.taxGap)}</p>
+     {group.found.map(row=><p key={row.approvalNo}>{row.issuedDate||row.date} · {row.supplierName} · {displayApproval(row.approvalNo)}</p>)}
+     <p><strong>방송월별 배분 공급가액</strong> · {months.size?[...months].sort(([a],[b])=>a.localeCompare(b)).map(([month,net])=>month+' '+won(net)).join(' / '):'등록된 방송 배분 없음'}</p>
+    </article>;
+   })}
+
+ </section>;
 }
