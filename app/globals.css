@@ -961,3 +961,44 @@ select.form-control {
 .tax-match-candidate small { display:block; color:var(--secondary); overflow-wrap:anywhere; }
 .tax-match-candidate>span:last-child { text-align:right; }
 @media(max-width:800px) { .tax-match-columns { grid-template-columns:1fr; } }
+
+.tax-match-launch {
+  display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:12px;
+  padding:14px 16px; border:1px solid var(--line); border-radius:12px; background:var(--surface);
+}
+.tax-match-launch small,.tax-match-header small { display:block; margin-top:4px; color:var(--secondary); }
+.tax-match-launch .finance-actions,.tax-match-review>.finance-actions { margin:0; }
+.tax-match-dialog {
+  position:fixed; inset:0; margin:auto; width:min(980px,calc(100% - 32px)); max-width:none;
+  max-height:calc(100dvh - 32px); padding:0; border:1px solid var(--line); border-radius:16px;
+  background:var(--surface); color:var(--ink); box-shadow:0 16px 56px #0003;
+}
+.tax-match-dialog[open] { display:flex; flex-direction:column; }
+.tax-match-dialog::backdrop { background:#11182780; }
+.tax-match-header,.tax-match-footer {
+  display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:10px;
+  padding:14px 20px;
+}
+.tax-match-header h2 { margin:0; font-size:var(--heading); }
+.tax-match-tabs { display:flex; flex-wrap:wrap; gap:8px; padding:0 20px 12px; border-bottom:1px solid var(--line); }
+.tax-match-body { overflow:auto; min-height:0; padding:16px 20px; }
+.tax-match-columns>div>h3 { margin:0 0 10px; font-size:var(--list); }
+.tax-match-invoices {
+  list-style:none; margin:0; padding:0; max-height:270px; overflow:auto;
+  border:1px solid var(--line); border-radius:10px;
+}
+.tax-match-invoices li+li { border-top:1px solid var(--line); }
+.tax-match-invoices button {
+  display:flex; justify-content:space-between; align-items:start; gap:8px; width:100%; padding:10px 12px;
+  border:0; background:var(--surface); color:var(--ink); text-align:left; font:inherit;
+}
+.tax-match-invoices button:hover { background:var(--surface-alt); }
+.tax-match-invoices button[aria-pressed="true"] { background:var(--selected); color:var(--accent); }
+.tax-match-invoices button:focus-visible { outline:2px solid var(--ring); outline-offset:-2px; }
+.tax-match-invoices button>span:last-child { text-align:right; }
+.tax-match-invoices small { display:block; margin-top:4px; color:var(--secondary); }
+.tax-match-footer { border-top:1px solid var(--line); }
+@media(max-width:480px) {
+  .tax-match-dialog { width:calc(100% - 16px); max-height:calc(100dvh - 16px); }
+  .tax-match-header,.tax-match-tabs,.tax-match-body,.tax-match-footer { padding-inline:12px; }
+}

@@ -1,6 +1,6 @@
 'use client';
 
-import {useState} from 'react';
+import {useId,useRef,useState} from 'react';
 import type {Contract,Finance} from '@/lib/finance-model';
 import type {Item} from '@/lib/scm-model';
 import {airingLabel,pplAirings} from '@/lib/ppl-airings';
@@ -18,6 +18,8 @@ async function fingerprint(rows:TaxInvoice[]){
 }
 
 export function TaxMatchPreview({finance,items,rows,sourceRows,onClose}:{finance:Finance;items:Item[];rows:TaxInvoice[];sourceRows:TaxInvoice[];onClose:()=>void}){
+ const dialog=useRef<HTMLDialogElement>(null);
+ const titleId=useId();
  const [matches,setMatches]=useState<Matches>({});
  const [index,setIndex]=useState(0);
  const [query,setQuery]=useState('');
@@ -98,13 +100,24 @@ export function TaxMatchPreview({finance,items,rows,sourceRows,onClose}:{finance
   finally{setWorking(false);}
  }
 
- return <section className="tax-refs tax-match" aria-label="계산서 매칭 작업">
-  <div className="finance-actions">
-   <button className={review?'secondary-button':'primary-button'} aria-pressed={!review} onClick={()=>setReview(false)}>PPL 후보 매칭</button>
-   <button className={review?'primary-button':'secondary-button'} aria-pressed={review} onClick={()=>setReview(true)}>회계 검토</button>
-   <span>{count} / {rows.length}건 선택</span>
-   <button className="text-button" onClick={onClose}>미리보기 닫기</button>
-  </div>
+ return <>
+  <section className="tax-match-launch" aria-label="계산서 매칭 미리보기">
+   <div><strong>{invoice.supplierName||invoice.supplierNo}</strong><small>거래처 계산서 {rows.length}건 · 매칭 선택 {count}건</small></div>
+   <div className="finance-actions">
+    <button className="text-button" onClick={onClose}>목록 닫기</button>
+    <button className="primary-button" onClick={()=>dialog.current?.showModal()}>계산서 매칭 열기</button>
+   </div>
+  </section>
+  <dialog ref={dialog} className="tax-match-dialog" aria-labelledby={titleId}>
+   <header className="tax-match-header">
+    <div><h2 id={titleId}>계산서 매칭</h2><small>{invoice.supplierName||invoice.supplierNo} · {rows.length}건</small></div>
+    <button autoFocus className="text-button" onClick={()=>dialog.current?.close()}>닫기</button>
+   </header>
+   <div className="tax-match-tabs">
+    <button className={review?'secondary-button':'primary-button'} aria-pressed={!review} onClick={()=>setReview(false)}>PPL 후보 매칭</button>
+    <button className={review?'primary-button':'secondary-button'} aria-pressed={review} onClick={()=>setReview(true)}>회계 검토</button>
+   </div>
+   <div className="tax-match-body">
   {review?<div className="tax-match-review">
    <div className="finance-actions">
     <button className="secondary-button" disabled={!count||working} onClick={()=>void download()}>회계 검토 파일 내려받기</button>
@@ -131,9 +144,13 @@ export function TaxMatchPreview({finance,items,rows,sourceRows,onClose}:{finance
    })}
   </div>:<div className="tax-match-columns">
    <div>
-    <label className="input-field"><span className="field-label">계산서 선택</span><select className="form-control" value={index} onChange={event=>{setIndex(Number(event.target.value));setQuery('');}}>
-     {rows.map((row,n)=><option key={row.approvalNo} value={n}>{matches[n]?.length?'✓ ':''}{row.issuedDate||row.date} · {row.supplierName||row.supplierNo} · {won(row.net)} · {row.approvalNo.slice(-8)}</option>)}
-    </select></label>
+    <h3>계산서 선택</h3>
+    <ul className="tax-match-invoices">{rows.map((row,n)=><li key={row.approvalNo}>
+     <button type="button" aria-pressed={n===index} onClick={()=>{setIndex(n);setQuery('');}}>
+      <span><strong>{row.issuedDate||row.date}</strong><small>승인번호 끝 {row.approvalNo.slice(-8)}</small></span>
+      <span><strong>{won(row.net)}</strong><small>{matches[n]?.length?'매칭 선택됨':'공급가액'}</small></span>
+     </button>
+    </li>)}</ul>
     <div className="sale-card">
      <h3>{invoice.supplierName||invoice.supplierNo}</h3>
      <p>작성일 {invoice.date}{invoice.issuedDate&&' · 발급일 '+invoice.issuedDate}</p>
@@ -143,6 +160,7 @@ export function TaxMatchPreview({finance,items,rows,sourceRows,onClose}:{finance
     </div>
    </div>
    <div>
+    <h3>PPL 계약 후보</h3>
     <input className="form-control" aria-label="PPL 계약 검색" placeholder="계약번호, 프로그램, 거래처, 방송일 검색" value={query} onChange={event=>setQuery(event.target.value)}/>
     <p>{selected.length}개 계약 선택 · 합산 발행은 관련 계약을 함께 선택하세요.</p>
     {!candidates.length&&<p>같은 공급자 후보가 없습니다. 계약을 직접 검색할 수 있습니다.</p>}
@@ -155,5 +173,13 @@ export function TaxMatchPreview({finance,items,rows,sourceRows,onClose}:{finance
    </div>
   </div>}
   {message&&<p role="status">{message}</p>}
- </section>;
+   </div>
+   <footer className="tax-match-footer">
+    <span>{rows.length}건 중 {count}건 매칭 선택</span>
+    {review
+     ? <button className="secondary-button" onClick={()=>setReview(false)}>매칭으로 돌아가기</button>
+     : <button className="primary-button" onClick={()=>setReview(true)}>회계 검토 보기</button>}
+   </footer>
+  </dialog>
+ </>;
 }
