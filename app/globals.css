@@ -500,7 +500,31 @@ button { transition:background 180ms cubic-bezier(.22,.25,0,1),color 180ms cubic
 .reading-button,.icon-button { min-height:36px; padding:6px 12px; border-radius:12px; }
 .icon-button { width:36px; }
 .primary-button,.secondary-button,.text-button,.today-button,.drawer-body button { min-height:38px; padding:7px 12px; border-radius:12px; font-size:var(--body); }
-.form-control { min-height:40px; padding:7px 10px; font-size:var(--body); }
+.form-control { min-height:44px; padding:7px 12px; font-size:var(--body); }
+:where(input:not([type="checkbox"],[type="radio"],[type="file"]),select).form-control {
+  box-sizing:border-box;
+  height:44px;
+  padding-block:0;
+  border-radius:10px;
+}
+/* Normalize Safari's native select sizing while keeping native keyboard behavior. */
+select.form-control {
+  appearance:none;
+  padding-inline-end:30px;
+  background-image:linear-gradient(45deg,transparent 50%,var(--secondary) 50%),
+    linear-gradient(135deg,var(--secondary) 50%,transparent 50%);
+  background-position:right 15px center,right 10px center;
+  background-size:5px 5px;
+  background-repeat:no-repeat;
+}
+.time-input select.form-control { padding-inline:8px 24px; }
+@media (forced-colors:active) {
+  select.form-control {
+    appearance:auto;
+    padding-inline-end:12px;
+    background-image:none;
+  }
+}
 .field-label { font-size:var(--body); margin-bottom:4px; }
 .result-grid,.sale-fields { gap:10px 14px; }
 .form-section-heading { margin-bottom:12px; }
@@ -763,7 +787,6 @@ button { transition:background 180ms cubic-bezier(.22,.25,0,1),color 180ms cubic
 .contract-section>.result-note { margin:0 0 12px; }
 .contract-identity-grid,.agency-amounts { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px 20px; align-items:start; }
 .contract-money-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px 20px; align-items:start; }
-.contract-money-grid .form-control { min-height:44px; }
 .contract-total { background:var(--selected); color:var(--accent); font-weight:700; }
 .contract-section .vat-toggle { margin-top:10px; }
 .agency-amounts { margin-top:14px; }
