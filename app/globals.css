@@ -1050,3 +1050,8 @@ select.form-control {
 }
 .ppl-date-trigger:focus-visible { outline:2px solid var(--ring); outline-offset:2px; }
 :has(> .ppl-date-popover) { z-index:70; }
+.ppl-date-popover {
+ background-color:var(--surface);
+ color:var(--ink);
+ border:1px solid var(--line);
+}
