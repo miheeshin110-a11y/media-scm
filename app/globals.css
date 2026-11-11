@@ -1039,3 +1039,14 @@ select.form-control {
 .tax-review-pages { display:flex; flex-wrap:wrap; gap:8px; align-items:center; justify-content:flex-end; padding-top:8px; font-size:var(--caption); }
 .tax-review-save { position:sticky; bottom:0; z-index:2; padding:12px; background:var(--surface); border:1px solid var(--line); border-radius:10px; box-shadow:0 -4px 16px rgb(0 0 0 / 7%); }
 @media(max-width:1050px) { .tax-review-layout { grid-template-columns:minmax(0,1fr); } }
+
+.ppl-date-trigger {
+ display:flex;
+ align-items:center;
+ justify-content:space-between;
+ gap:8px;
+ text-align:left;
+ cursor:pointer;
+}
+.ppl-date-trigger:focus-visible { outline:2px solid var(--ring); outline-offset:2px; }
+:has(> .ppl-date-popover) { z-index:70; }
