@@ -17,7 +17,7 @@ async function fingerprint(rows:TaxInvoice[]){
  return Array.from(new Uint8Array(bytes),byte=>byte.toString(16).padStart(2,'0')).join('');
 }
 
-export function TaxMatchPreview({finance,items,rows,onClose}:{finance:Finance;items:Item[];rows:TaxInvoice[];onClose:()=>void}){
+export function TaxMatchPreview({finance,items,rows,sourceRows,onClose}:{finance:Finance;items:Item[];rows:TaxInvoice[];sourceRows:TaxInvoice[];onClose:()=>void}){
  const [matches,setMatches]=useState<Matches>({});
  const [index,setIndex]=useState(0);
  const [query,setQuery]=useState('');
@@ -77,14 +77,21 @@ export function TaxMatchPreview({finance,items,rows,onClose}:{finance:Finance;it
   try{
    if(file.size>1024*1024)throw Error();
    const data=JSON.parse(await file.text());
-   if(data.version!==1||data.source!==await fingerprint(rows)||!Array.isArray(data.matches))throw Error();
+   if(data.version!==1||!Array.isArray(data.matches))throw Error();
+   const currentSource=data.source===await fingerprint(rows);
+   if(!currentSource&&data.source!==await fingerprint(sourceRows))throw Error();
+   const indexedRows=currentSource?rows:sourceRows;
+   const visibleIndex=new Map(rows.map((invoice,index)=>[invoice.approvalNo,index]));
    const ids=new Set(finance.contracts.map(contract=>contract.id));
    const next:Matches={};
    for(const entry of data.matches){
     if(!Array.isArray(entry)||entry.length!==2)throw Error();
     const [row,contracts]=entry;
-    if(!Number.isInteger(row)||row<0||row>=rows.length||row in next||!Array.isArray(contracts)||!contracts.length||contracts.some(id=>!ids.has(id)))throw Error();
-    next[row]=[...new Set<string>(contracts)];
+    if(!Number.isInteger(row)||row<0||row>=indexedRows.length||!Array.isArray(contracts)||!contracts.length)throw Error();
+    const index=visibleIndex.get(indexedRows[row].approvalNo);
+    if(index===undefined)continue;
+    if(index in next||contracts.some(id=>!ids.has(id)))throw Error();
+    next[index]=[...new Set<string>(contracts)];
    }
    setMatches(next);setReview(true);
   }catch{setMessage('검토 파일을 읽지 못했습니다. 매칭에 사용한 원본 엑셀과 계약을 확인해 주세요.');}
