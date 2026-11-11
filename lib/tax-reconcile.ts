@@ -1,5 +1,5 @@
 import type {Finance,Contract} from './finance-model.ts';
-export type TaxInvoice={approvalNo:string;date:string;issuedDate:string;supplierNo:string;supplierName:string;customerNo:string;customerName:string;net:string;tax:string;total:string;kind:string;originalApprovalNo:string;sourceFile:string;sourceRow:number;importedAt?:string};
+export type TaxInvoice={approvalNo:string;date:string;issuedDate:string;supplierNo:string;supplierName:string;customerNo:string;customerName:string;net:string;tax:string;total:string;kind:string;originalApprovalNo:string;sourceFile:string;sourceRow:number;importedAt?:string;itemName?:string};
 export const normalizeApproval=(v:string)=>v.trim().replace(/[-\s]/g,'').toUpperCase();
 export const approvalValid=(v:string)=>/^\d{16}[A-Z0-9]{8}$/.test(normalizeApproval(v));
 export const displayApproval=(v:string)=>approvalValid(v)?normalizeApproval(v).match(/.{8}/g)!.join('-'):v;
@@ -9,7 +9,9 @@ export function validateTaxInvoice(value:unknown):TaxInvoice{
  const x=value as TaxInvoice;
  if(!x||typeof x!=='object'||['approvalNo','date','issuedDate','supplierNo','supplierName','customerNo','customerName','net','tax','total','kind','originalApprovalNo','sourceFile'].some(k=>typeof (x as unknown as Record<string,unknown>)[k]!=='string'||String((x as unknown as Record<string,unknown>)[k]).length>300))throw new Error('계산서 열 형식을 확인해 주세요.');
  if(!approvalValid(x.approvalNo)||!dateValid(x.date)||(x.issuedDate&&!dateValid(x.issuedDate))||!/^\d{10}$/.test(x.supplierNo)||!/^\d{10}$/.test(x.customerNo)||![x.net,x.tax,x.total].every(signed)||Number(x.net)+Number(x.tax)!==Number(x.total)||(x.originalApprovalNo&&!approvalValid(x.originalApprovalNo))||!Number.isSafeInteger(x.sourceRow)||x.sourceRow<1)throw new Error('승인번호·작성일·사업자번호·금액을 확인해 주세요. 숫자로 변환되어 손상된 승인번호는 원본 엑셀로 다시 올려 주세요.');
- return {approvalNo:normalizeApproval(x.approvalNo),date:x.date,issuedDate:x.issuedDate,supplierNo:x.supplierNo,supplierName:x.supplierName,customerNo:x.customerNo,customerName:x.customerName,net:String(Number(x.net)),tax:String(Number(x.tax)),total:String(Number(x.total)),kind:x.kind,originalApprovalNo:normalizeApproval(x.originalApprovalNo),sourceFile:x.sourceFile,sourceRow:x.sourceRow};
+ if(x.itemName!==undefined&&(typeof x.itemName!=='string'||x.itemName.length>300))throw new Error('계산서 품목명을 확인해 주세요.');
+ const itemName=x.itemName?.trim();
+ return {approvalNo:normalizeApproval(x.approvalNo),date:x.date,issuedDate:x.issuedDate,supplierNo:x.supplierNo,supplierName:x.supplierName,customerNo:x.customerNo,customerName:x.customerName,net:String(Number(x.net)),tax:String(Number(x.tax)),total:String(Number(x.total)),kind:x.kind,originalApprovalNo:normalizeApproval(x.originalApprovalNo),sourceFile:x.sourceFile,sourceRow:x.sourceRow,...(itemName?{itemName}:{})};
 }
 const facts=(x:TaxInvoice)=>JSON.stringify([x.date,x.issuedDate,x.supplierNo,x.customerNo,x.net,x.tax,x.total,x.kind,x.originalApprovalNo]);
 export function pendingTaxInvoices(rows:TaxInvoice[],confirmed:TaxInvoice[]){
@@ -34,12 +36,12 @@ export function parseHometaxRows(rows:unknown[][],sourceFile:string):TaxInvoice[
  if([a,d,sn,cn,net,tax,total].some(i=>i<0))throw new Error('승인번호·작성일자·공급자/공급받는자 사업자번호·공급가액·세액·합계금액 열이 필요합니다.');
  const nameAfter=(start:number,end:number)=>h.findIndex((v,i)=>i>start&&i<end&&v==='상호');
  const supplierName=index('공급자상호')>=0?index('공급자상호'):nameAfter(sn,cn),customerName=index('공급받는자상호')>=0?index('공급받는자상호'):nameAfter(cn,h.length);
- const k=index('전자세금계산서분류','세금계산서분류'),n=index('비고');const result:TaxInvoice[]=[];
+ const k=index('전자세금계산서분류','세금계산서분류'),n=index('비고'),item=index('품목명','품목');const result:TaxInvoice[]=[];
  const asDate=(v:unknown)=>clean(v).replace(/[./]/g,'-').replace(/^(\d{4})-(\d{1,2})-(\d{1,2})$/,(_,y,m,d)=>`${y}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`);
  const asMoney=(v:unknown)=>clean(v).replace(/[,\s원₩]/g,'').replace(/^\((\d+)\)$/,'-$1');
  for(let i=header+1;i<rows.length;i++){const r=rows[i];if(!clean(r[a])||clean(r[a])==='승인번호')continue;
   const note=clean(r[n]),original=note.match(/(?:당초|원본)\s*승인번호\s*[:(]?\s*(\d{8}-?\d{8}-?[a-zA-Z0-9]{8})/);
-  try{result.push(validateTaxInvoice({approvalNo:clean(r[a]),date:asDate(r[d]),issuedDate:issued<0?'':asDate(r[issued]),supplierNo:clean(r[sn]).replace(/[-\s]/g,''),supplierName:clean(r[supplierName]),customerNo:clean(r[cn]).replace(/[-\s]/g,''),customerName:clean(r[customerName]),net:asMoney(r[net]),tax:asMoney(r[tax]),total:asMoney(r[total]),kind:clean(r[k]),originalApprovalNo:original?.[1]||'',sourceFile,sourceRow:i+1}));}catch(e){throw new Error(`${sourceFile} ${i+1}행: ${e instanceof Error?e.message:'형식 확인 필요'}`);}
+  try{result.push(validateTaxInvoice({approvalNo:clean(r[a]),date:asDate(r[d]),issuedDate:issued<0?'':asDate(r[issued]),supplierNo:clean(r[sn]).replace(/[-\s]/g,''),supplierName:clean(r[supplierName]),customerNo:clean(r[cn]).replace(/[-\s]/g,''),customerName:clean(r[customerName]),net:asMoney(r[net]),tax:asMoney(r[tax]),total:asMoney(r[total]),kind:clean(r[k]),itemName:clean(r[item]),originalApprovalNo:original?.[1]||'',sourceFile,sourceRow:i+1}));}catch(e){throw new Error(`${sourceFile} ${i+1}행: ${e instanceof Error?e.message:'형식 확인 필요'}`);}
  }
  if(!result.length)throw new Error('계산서 데이터가 없습니다.');return mergeTaxInvoices([],result).rows;
 }

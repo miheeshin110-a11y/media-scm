@@ -96,12 +96,13 @@ function TaxMatchDialog({finance,items,rows,sourceRows,onClose,onHandoff}:{finan
     <h3>계산서 선택</h3>
     <ul className="tax-match-invoices">{rows.map((row,n)=><li key={row.approvalNo}>
      <button type="button" aria-pressed={n===index} onClick={()=>{setIndex(n);setQuery('');}}>
-      <span><strong>{row.issuedDate||row.date}</strong><small>승인번호 끝 {row.approvalNo.slice(-8)}</small></span>
+      <span><strong>{row.itemName||'품목명 없음'}</strong><small>{row.issuedDate||row.date} · 승인번호 끝 {row.approvalNo.slice(-8)}</small></span>
       <span><strong>{won(row.net)}</strong><small>{matches[n]?.length?'매칭 선택됨':'공급가액'}</small></span>
      </button>
     </li>)}</ul>
     <div className="sale-card">
      <h3>{invoice.supplierName||invoice.supplierNo}</h3>
+     <p><strong>품목명</strong> · {invoice.itemName||'원본에 없음'}</p>
      <p>작성일 {invoice.date}{invoice.issuedDate&&' · 발급일 '+invoice.issuedDate}</p>
      <p>공급가액 {won(invoice.net)} · 세액 {won(invoice.tax)}</p>
      <p>승인번호 {displayApproval(invoice.approvalNo)}</p>
@@ -347,7 +348,7 @@ function AccountingReviewDetails({group,allocations,items}:{group:ReviewGroup;al
   </table>
   <div className="tax-review-evidence">
    <div><h4>계산서 발행일 · 승인번호</h4>
-    {group.found.map(row=><p key={row.approvalNo}>{row.issuedDate||row.date}<small>{displayApproval(row.approvalNo)}</small></p>)}
+    {group.found.map(row=><p key={row.approvalNo}><strong>{row.itemName||'품목명 없음'}</strong><small>{row.issuedDate||row.date} · {displayApproval(row.approvalNo)}</small></p>)}
     {group.missing.map(number=><p key={number}>{displayApproval(number)} · 자료 없음</p>)}
    </div>
    <div><h4>방송월별 배분 공급가액</h4>
