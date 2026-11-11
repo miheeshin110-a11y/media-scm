@@ -949,3 +949,15 @@ select.form-control {
   .finance-picker-row { grid-template-columns:1fr; gap:6px; }
   .finance-picker-amount { display:flex; align-items:baseline; gap:8px; text-align:left; }
 }
+
+.tax-match-columns { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1.65fr); gap:16px; }
+.tax-match-columns .sale-card,.tax-match-review .sale-card { margin-top:12px; }
+.tax-match-candidates { max-height:380px; overflow:auto; }
+.tax-match-candidate {
+  display:grid; grid-template-columns:auto minmax(0,1fr) auto; gap:10px; align-items:start;
+  padding:10px 8px; border-top:1px solid var(--line);
+}
+.tax-match-candidate:has(:checked) { background:var(--selected); }
+.tax-match-candidate small { display:block; color:var(--secondary); overflow-wrap:anywhere; }
+.tax-match-candidate>span:last-child { text-align:right; }
+@media(max-width:800px) { .tax-match-columns { grid-template-columns:1fr; } }
