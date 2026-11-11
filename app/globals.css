@@ -1019,7 +1019,7 @@ select.form-control {
 .tax-review-table-wrap { max-height:none; background:var(--surface); }
 .tax-review-table { min-width:400px; }
 .tax-review-table td { vertical-align:middle; }
-.tax-review-table td:nth-child(n+2) { white-space:nowrap; }
+.tax-review-table td:nth-child(n+3) { white-space:nowrap; }
 .tax-review-table tbody tr:last-child td { border-bottom:0; }
 .tax-review-table tr[data-active="true"] { background:var(--selected); }
 .tax-review-select { display:block; width:100%; text-align:left; border:0; padding:4px; background:transparent; color:inherit; cursor:pointer; }

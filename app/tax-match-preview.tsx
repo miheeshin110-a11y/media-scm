@@ -123,12 +123,15 @@ export function TaxMatchPreview({finance,items,rows,onClose,onHandoff}:{finance:
 }
 
 
-export function TaxAccountingReview({finance,items,draft,save,canConfirm,busy,onClearDraft}:{finance:Finance;items:Item[];draft:TaxReviewDraft|null;save:FinanceSave;canConfirm:boolean;busy:boolean;onClearDraft:()=>void}){
+export function TaxAccountingReview({finance,items,draft,save,canConfirm,busy,onDraftChange}:{finance:Finance;items:Item[];draft:TaxReviewDraft|null;save:FinanceSave;canConfirm:boolean;busy:boolean;onDraftChange:(draft:TaxReviewDraft|null)=>void}){
  const [workbook,setWorkbook]=useState<TaxInvoice[]>([]);
  const [imported,setImported]=useState<TaxReviewDraft|null>(null);
  const [message,setMessage]=useState('');
  const [working,setWorking]=useState(false);
- const {rows,matches}=imported||draft||{rows:[],matches:{}};
+ const source=imported||draft;
+ const {rows,matches}=source||{rows:[],matches:{}};
+ const [checked,setChecked]=useState<{source:TaxReviewDraft|null;ids:Set<string>}>({source:null,ids:new Set()});
+ const checkedIds=checked.source===source?checked.ids:new Set<string>();
 
  async function openWorkbook(file:File|undefined){
   if(!file)return;
@@ -179,18 +182,30 @@ export function TaxAccountingReview({finance,items,draft,save,canConfirm,busy,on
  }catch(error){
   reviewError=error instanceof Error?error.message:'계산서 매칭을 확인해 주세요.';
  }
- const ready=groups.length>0&&groups.every(group=>group.status==='대조 일치');
+ const eligible=groups.filter(group=>group.status==='대조 일치');
+ const selectedApprovals=new Set(eligible.filter(group=>checkedIds.has(group.members[0].id)).flatMap(group=>group.refs));
+ const selectedMatches=selection.filter(match=>selectedApprovals.has(match.invoice.approvalNo));
+ const pendingCount=selection.length-selectedMatches.length;
+ const ready=selectedMatches.length>0;
  const [confirming,setConfirming]=useState(false);
+
+ function selectForConfirmation(ids:Set<string>){
+  setChecked({source,ids});
+  setConfirming(false);
+ }
 
  async function confirm(){
   if(!canConfirm||!ready||working||busy)return;
   setWorking(true);
   try{
-   if(!await save({kind:'taxConfirm',data:{matches:selection}}))return;
-   if(imported)setImported(null);
-   else onClearDraft();
+   if(!await save({kind:'taxConfirm',data:{matches:selectedMatches}}))return;
+   const remainingMatches=Object.fromEntries(Object.entries(matches).filter(([index])=>!selectedApprovals.has(rows[Number(index)].approvalNo)));
+   const remaining=pendingCount?{rows,matches:remainingMatches}:null;
+   if(imported)setImported(remaining);
+   else onDraftChange(remaining);
+   setChecked({source:null,ids:new Set()});
    setConfirming(false);
-   setMessage('계산서를 확정했습니다. 구글시트 전송 상태는 구글시트 반영 상태에서 확인할 수 있습니다.');
+   setMessage('계산서 '+selectedMatches.length+'건을 확정했습니다. 구글시트 전송 상태를 확인할 수 있습니다.');
   }finally{setWorking(false);}
  }
 
@@ -205,11 +220,13 @@ export function TaxAccountingReview({finance,items,draft,save,canConfirm,busy,on
   {message&&<p role="status">{message}</p>}
   {reviewError&&<p role="alert">{reviewError}</p>}
    {!selection.length&&<p>PPL팀이 전달한 초안이 없습니다. 원본 엑셀과 회계 전달 파일을 차례로 열어 주세요.</p>}
-  {groups.length>0&&<AccountingReviewList groups={groups} allocations={finance.allocations} items={items} invoiceCount={selection.length}/>}
+  {groups.length>0&&<AccountingReviewList groups={groups} allocations={finance.allocations} items={items} invoiceCount={selection.length} checkedIds={checkedIds}
+   onToggle={canConfirm&&!working&&!busy?(id)=>{const next=new Set(checkedIds);if(next.has(id))next.delete(id);else next.add(id);selectForConfirmation(next);}:undefined}
+   onSelectAll={canConfirm&&eligible.length>0&&!working&&!busy?()=>selectForConfirmation(new Set(eligible.map(group=>group.members[0].id))):undefined}/>}
 
   {selection.length>0&&<footer className="tax-review-save">
-   <div><strong>{confirming?'계산서 '+selection.length+'건 저장 확인':'저장 대상 · 현재 초안 전체 '+selection.length+'건'}</strong>
-    <small>{!canConfirm?'팀장 권한이 있는 계정에서 확정할 수 있습니다.':ready?'승인번호와 계산서 내역을 구글시트에 반영합니다.':'확인 필요 항목을 해결하면 확정할 수 있습니다.'}</small>
+   <div><strong>{confirming?'선택한 계산서 '+selectedMatches.length+'건 저장 확인':'저장 대상 · 선택 '+selectedMatches.length+'건'}</strong>
+    <small>{!canConfirm?'팀장 권한이 있는 계정에서 확정할 수 있습니다.':ready?'선택한 건은 구글시트에 반영됩니다. 검토 목록에 남는 계산서 '+pendingCount+'건':eligible.length?'대조가 일치한 계산서를 선택하세요.':'확정할 수 있는 대조 일치 건이 없습니다.'}</small>
    </div>
    {canConfirm&&(confirming?<div className="finance-actions">
     <button className="secondary-button" disabled={working} onClick={()=>setConfirming(false)}>취소</button>
@@ -224,7 +241,7 @@ export function TaxAccountingReview({finance,items,draft,save,canConfirm,busy,on
 type ReviewGroup=ReturnType<typeof prepareTaxConfirmation>['groups'][number];
 const reviewPageSize=10;
 
-function AccountingReviewList({groups,allocations,items,invoiceCount}:{groups:ReviewGroup[];allocations:Finance['allocations'];items:Item[];invoiceCount:number}){
+function AccountingReviewList({groups,allocations,items,invoiceCount,checkedIds,onToggle,onSelectAll}:{groups:ReviewGroup[];allocations:Finance['allocations'];items:Item[];invoiceCount:number;checkedIds:Set<string>;onToggle?:(id:string)=>void;onSelectAll?:()=>void}){
  const [query,setQuery]=useState('');
  const [filter,setFilter]=useState<'all'|'check'|'matched'>('all');
  const [page,setPage]=useState(0);
@@ -251,6 +268,7 @@ function AccountingReviewList({groups,allocations,items,invoiceCount}:{groups:Re
     <span data-tone="matched">대조 일치 <b>{groups.length-checkCount}</b></span>
     <span data-tone={checkCount?'check':undefined}>확인 필요 <b>{checkCount}</b></span>
    </div>
+   {onSelectAll&&<button className="secondary-button" onClick={onSelectAll}>대조 일치 전체 선택</button>}
    <label><span>대조 상태</span><select className="form-control" value={filter} onChange={event=>{setFilter(event.target.value as typeof filter);setPage(0);setSelected(null);}}>
     <option value="all">전체</option><option value="check">확인 필요</option><option value="matched">대조 일치</option>
    </select></label>
@@ -259,19 +277,20 @@ function AccountingReviewList({groups,allocations,items,invoiceCount}:{groups:Re
   <div className="tax-review-layout"><div className="tax-review-queue">
   <div className="tax-table-wrap tax-review-table-wrap" role="region" aria-label="계약과 계산서 비교" tabIndex={0}>
    <table className="tax-table tax-review-table">
-    <thead><tr><th scope="col">PPL 계약 · 거래처</th><th scope="col">계산서</th><th scope="col">공급가액</th><th scope="col">대조 상태</th></tr></thead>
+    <thead><tr><th scope="col">선택</th><th scope="col">PPL 계약 · 거래처</th><th scope="col">계산서</th><th scope="col">공급가액</th><th scope="col">대조 상태</th></tr></thead>
     <tbody>
      {pageRows.map(group=>{
       const first=group.members[0];
       const isActive=active===group;
       return <tr key={first.id} data-active={isActive}>
+       <td><input type="checkbox" aria-label={contractTitle(first)+' 확정 대상 선택'} disabled={!onToggle||group.status!=='대조 일치'} checked={group.status==='대조 일치'&&checkedIds.has(first.id)} onChange={()=>onToggle?.(first.id)}/></td>
        <td><button className="tax-review-select" aria-pressed={isActive} onClick={()=>setSelected(first.id)}><strong>{contractTitle(first)}</strong>{group.members.length>1&&' 외 '+(group.members.length-1)+'건'}<small>{first.code} · {first.party}</small></button></td>
        <td>{group.found.length}건{group.missing.length>0&&<small>자료 없음 {group.missing.length}건</small>}</td>
        <td className="tax-review-amount">{won(group.actualNet)}</td>
        <td><span className="tax-review-status" data-tone={group.status==='대조 일치'?'matched':'check'}>{group.status}</span></td>
       </tr>;
      })}
-     {!pageRows.length&&<tr><td colSpan={4}>검색 조건에 맞는 대조 대상이 없습니다.</td></tr>}
+     {!pageRows.length&&<tr><td colSpan={5}>검색 조건에 맞는 대조 대상이 없습니다.</td></tr>}
     </tbody>
    </table>
   </div>
