@@ -613,6 +613,14 @@ a.fn:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
 #sheet-detail .gs-t{zoom:1.22}
 #sheet-detail .gs-t td.h-t2.fze{overflow:visible;box-shadow:none}
 
+/* 흐름도 박스 간격 확대 */
+.fn{width:210px}
+.fn.key.sheet,.fn.wip{width:250px}
+.fg-lane span{left:14px}
+/* 제목 2줄 고정 */
+.slide header{display:block!important}
+.slide header .eyebrow,.slide header h1,.slide header h2{display:block!important;float:none!important}
+
 
 body{background:var(--base)}
 #viewport{inset:0 12px 60px}
@@ -749,51 +757,46 @@ body{background:var(--base)}
  <div class="fg-lane" style="top:30px;height:150px"><span>PPL·회계<br><small>계약·계산서·대조</small></span></div>
  <div class="fg-lane alt" style="top:188px;height:190px"><span>방송팀<br><small>입력·실적</small></span></div>
  <div class="fg-lane" style="top:386px;height:150px"><span>물류팀<br><small>준비·출고</small></span></div>
- <div class="fg-stage" style="left:130px">등록</div><div class="fg-stage" style="left:470px">입력 · 배분</div><div class="fg-stage" style="left:810px">실적</div><div class="fg-stage" style="left:1170px">기록 · 후속</div>
+ <div class="fg-stage" style="left:125px;width:210px">등록</div><div class="fg-stage" style="left:475px;width:210px">입력 · 배분</div><div class="fg-stage" style="left:825px;width:210px">실적</div><div class="fg-stage" style="left:1202px;width:250px">기록 · 후속</div>
  <svg class="fg-svg" viewBox="0 0 1452 560" aria-hidden="true">
   <defs><marker id="fgArr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#F05322"/></marker>
   <marker id="fgArrG" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#9aa1ab"/></marker></defs>
-  <!-- 주 흐름 -->
-  <path id="fp1" class="fl main" d="M380,283 L428,283"/>
-  <path id="fp2" class="fl main" d="M380,105 C428,105 428,200 428,283"/>
-  <path id="fp3" class="fl main" d="M428,283 L466,283" marker-end="url(#fgArr)"/>
-  <path id="fp4" class="fl main" d="M720,283 L806,283" marker-end="url(#fgArr)"/>
-  <path id="fp5" class="fl main" d="M1060,283 L1118,283"/>
-  <path id="fp6" class="fl main" d="M1118,283 L1166,283" marker-end="url(#fgArr)"/>
-  <path id="fp7" class="fl sub" d="M1118,283 C1142,283 1142,461 1166,461" marker-end="url(#fgArrG)"/>
-  <!-- PPL팀 줄 -->
-  <path id="fp8" class="fl ppl" d="M380,105 L466,105" marker-end="url(#fgArr)"/>
-  <path id="fp9" class="fl sub" d="M720,105 L1132,105"/>
-  <path id="fp10" class="fl sub" d="M595,218 C595,184 640,184 700,184 L1080,184 C1124,184 1132,150 1132,105"/>
-  <path id="fp11" class="fl sub" d="M1132,105 L1166,105" marker-end="url(#fgArrG)"/>
-  <circle class="fg-hub" cx="428" cy="283" r="6"/><circle class="fg-hub" cx="1118" cy="283" r="6"/><circle class="fg-hub g" cx="1132" cy="105" r="6"/>
-  <!-- 이동하는 점 -->
+  <path class="fl main" d="M335,283 L405,283"/>
+  <path class="fl main" d="M335,105 C405,105 405,200 405,283"/>
+  <path class="fl main" d="M405,283 L471,283" marker-end="url(#fgArr)"/>
+  <path class="fl main" d="M685,283 L821,283" marker-end="url(#fgArr)"/>
+  <path class="fl main" d="M1035,283 L1118,283"/>
+  <path class="fl main" d="M1118,283 L1198,283" marker-end="url(#fgArr)"/>
+  <path class="fl sub" d="M1118,283 C1148,283 1148,461 1198,461" marker-end="url(#fgArrG)"/>
+  <path class="fl ppl" d="M335,105 L471,105" marker-end="url(#fgArr)"/>
+  <path class="fl sub" d="M685,105 L1168,105"/>
+  <path class="fl sub" d="M580,218 C580,184 625,184 685,184 L1116,184 C1160,184 1168,150 1168,105"/>
+  <path class="fl sub" d="M1168,105 L1198,105" marker-end="url(#fgArrG)"/>
+  <circle class="fg-hub" cx="405" cy="283" r="6"/><circle class="fg-hub" cx="1118" cy="283" r="6"/><circle class="fg-hub g" cx="1168" cy="105" r="6"/>
   <g class="fg-dots">
-   <circle r="5" class="dot"><animateMotion dur="5.6s" repeatCount="indefinite" path="M130,283 L380,283 L428,283 L466,283 L720,283 L806,283 L1060,283 L1118,283 L1166,283"/></circle>
-   <circle r="5" class="dot"><animateMotion dur="5.6s" begin="-2.8s" repeatCount="indefinite" path="M130,283 L380,283 L428,283 L466,283 L720,283 L806,283 L1060,283 L1118,283 L1166,283"/></circle>
-   <circle r="4.5" class="dot t"><animateMotion dur="3.6s" repeatCount="indefinite" path="M380,105 C428,105 428,200 428,283 L466,283"/></circle>
-   <circle r="4.5" class="dot g"><animateMotion dur="4.4s" repeatCount="indefinite" path="M1060,283 L1118,283 C1142,283 1142,461 1166,461"/></circle>
-   <circle r="4.5" class="dot g"><animateMotion dur="5s" repeatCount="indefinite" path="M595,218 C595,184 640,184 700,184 L1080,184 C1124,184 1132,150 1132,105 L1166,105"/></circle>
+   <circle r="5" class="dot"><animateMotion dur="5.6s" repeatCount="indefinite" path="M125,283 L335,283 L405,283 L471,283 L685,283 L821,283 L1035,283 L1118,283 L1198,283"/></circle>
+   <circle r="5" class="dot"><animateMotion dur="5.6s" begin="-2.8s" repeatCount="indefinite" path="M125,283 L335,283 L405,283 L471,283 L685,283 L821,283 L1035,283 L1118,283 L1198,283"/></circle>
+   <circle r="4.5" class="dot t"><animateMotion dur="3.6s" repeatCount="indefinite" path="M335,105 C405,105 405,200 405,283 L471,283"/></circle>
+   <circle r="4.5" class="dot g"><animateMotion dur="4.4s" repeatCount="indefinite" path="M1035,283 L1118,283 C1148,283 1148,461 1198,461"/></circle>
+   <circle r="4.5" class="dot g"><animateMotion dur="5s" repeatCount="indefinite" path="M580,218 C580,184 625,184 685,184 L1116,184 C1160,184 1168,150 1168,105 L1198,105"/></circle>
   </g>
  </svg>
- <!-- 연결선 위 코드 라벨 -->
- <span class="fg-tag" style="left:398px;top:182px">계약코드</span>
- <span class="fg-tag" style="left:385px;top:296px">방송ID</span>
- <span class="fg-tag" style="left:722px;top:296px">배분코드</span>
- <span class="fg-tag" style="left:404px;top:93px">매칭</span>
- <span class="fg-tag g" style="left:840px;top:68px">승인번호 · 발행월</span>
- <span class="fg-tag g" style="left:845px;top:190px">배분코드 · 귀속월</span>
- <span class="fg-tag g" style="left:1076px;top:404px">예상출고</span>
- <!-- 노드 -->
- <a class="fn ppl" href="#case" data-step="1" style="left:130px;top:50px"><span class="fn-who">PPL팀 · 병행 등록</span><b>계약 등록</b><span class="fn-d">거래처 · 계약금액 · 송출회차</span><span class="code">PPL-2026-0016</span></a>
- <div class="fn ppl" style="left:470px;top:50px"><span class="fn-who">PPL팀</span><b>계산서 검토</b><span class="fn-d">세금계산서 엑셀 → 계약 매칭</span><span class="code">승인번호</span></div>
- <div class="fn wip" style="left:1170px;top:50px"><span class="fn-who">회계팀 · 검증 중</span><b>PPL 회계 조회</b><span class="fn-d">발행월 ↔ 귀속월 대조 · 월마감</span></div>
- <a class="fn key" href="#case" data-step="0" style="left:130px;top:213px"><span class="fn-who"><span class="num">1</span>방송팀</span><b>방송 입력</b><span class="fn-d">편성 · 판매조건 · 목표수량</span><span class="code">방송ID</span></a>
- <a class="fn key" href="#case" data-step="2" style="left:470px;top:213px"><span class="fn-who"><span class="num ghost">1</span>방송 입력 2단계</span><b>PPL 연결·배분</b><span class="fn-d">계약·송출회차 선택, 비용 귀속월</span><span class="code">PPL-2026-0016-000003</span></a>
- <a class="fn key" href="#case" data-step="4" style="left:810px;top:213px"><span class="fn-who"><span class="num">2</span>방송팀 · 방송 후</span><b>방송결과</b><span class="fn-d">주문수량 · 예상출고 · 손익</span><span class="code lt">같은 방송ID</span></a>
- <a class="fn key sheet" href="#case" data-step="5" style="left:1170px;top:213px"><span class="fn-who"><span class="num">3</span>자동 반영</span><b>구글시트</b><span class="fn-d">방송 종합 · PPL 배분현황 · SCM_방송결과</span><span class="code lt">방송ID · 계약코드 · 배분코드</span></a>
- <div class="fn wip" style="left:1170px;top:411px"><span class="fn-who">물류팀 · 검증 중</span><b>물류 SCM</b><span class="fn-d">본품·사은품 준비수량 · 전달 엑셀</span></div>
- <p class="fg-note" style="left:130px;top:430px">점선 위 라벨이 다음 화면으로 넘어가는 코드입니다. 이름이나 날짜가 아니라 코드로 이어받기 때문에 배분과 계산서 매칭이 같은 건으로 맞춰집니다.</p>
+ <span class="fg-tag" style="left:375px;top:184px">계약코드</span>
+ <span class="fg-tag" style="left:347px;top:298px">방송ID</span>
+ <span class="fg-tag" style="left:721px;top:298px">배분코드</span>
+ <span class="fg-tag" style="left:365px;top:72px">매칭</span>
+ <span class="fg-tag g" style="left:868px;top:71px">승인번호 · 발행월</span>
+ <span class="fg-tag g" style="left:868px;top:172px">배분코드 · 귀속월</span>
+ <span class="fg-tag g" style="left:1078px;top:404px">예상출고</span>
+ <a class="fn ppl" href="#case" data-step="1" style="left:125px;top:50px"><span class="fn-who">PPL팀 · 병행 등록</span><b>계약 등록</b><span class="fn-d">거래처 · 계약금액 · 송출회차</span><span class="code">PPL-2026-0016</span></a>
+ <div class="fn ppl" style="left:475px;top:50px"><span class="fn-who">PPL팀</span><b>계산서 검토</b><span class="fn-d">세금계산서 엑셀 → 계약 매칭</span><span class="code">승인번호</span></div>
+ <div class="fn wip" style="left:1202px;top:50px"><span class="fn-who">회계팀 · 검증 중</span><b>PPL 회계 조회</b><span class="fn-d">발행월 ↔ 귀속월 대조 · 월마감</span></div>
+ <a class="fn key" href="#case" data-step="0" style="left:125px;top:213px"><span class="fn-who"><span class="num">1</span>방송팀</span><b>방송 입력</b><span class="fn-d">편성 · 판매조건 · 목표수량</span><span class="code">방송ID</span></a>
+ <a class="fn key" href="#case" data-step="2" style="left:475px;top:213px"><span class="fn-who"><span class="num ghost">1</span>방송 입력 2단계</span><b>PPL 연결·배분</b><span class="fn-d">계약·송출회차, 비용 귀속월</span><span class="code">PPL-2026-0016-000003</span></a>
+ <a class="fn key" href="#case" data-step="4" style="left:825px;top:213px"><span class="fn-who"><span class="num">2</span>방송팀 · 방송 후</span><b>방송결과</b><span class="fn-d">주문수량 · 예상출고 · 손익</span><span class="code lt">같은 방송ID</span></a>
+ <a class="fn key sheet" href="#case" data-step="5" style="left:1202px;top:213px"><span class="fn-who"><span class="num">3</span>자동 반영</span><b>구글시트</b><span class="fn-d">방송 종합 · PPL 배분현황 · 물류 종합</span><span class="code lt">방송ID · 계약코드 · 배분코드</span></a>
+ <div class="fn wip" style="left:1202px;top:411px"><span class="fn-who">물류팀 · 검증 중</span><b>물류 SCM</b><span class="fn-d">본품·사은품 준비수량 · 전달 엑셀</span></div>
+ <p class="fg-note" style="left:125px;top:432px">점선 위 라벨이 다음 화면으로 넘어가는 코드입니다. 이름이나 날짜가 아니라 코드로 이어받기 때문에 배분과 계산서 매칭이 같은 건으로 맞춰집니다.</p>
 </div>
 
 </section>
