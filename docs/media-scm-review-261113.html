@@ -189,40 +189,40 @@ body{background:#e8e8e8}
 .idtag{display:inline-flex;gap:6px;align-items:center;margin-top:10px;font-size:14px;color:#58585b}
 .idtag .code{font-size:13px;padding:3px 8px}
 
-/* 표지 */
+/* 표지: 흰 바탕 + 오른쪽 연한 패널에 실제 앱 화면 한 장 (잘리지 않게) */
 #cover{padding:0}
-#cover.active{display:grid;grid-template-columns:1fr 560px}
-#cover .cv-l{padding:70px 0 70px 84px;display:flex;flex-direction:column;justify-content:center}
-#cover .cv-co{font-size:20px;font-weight:800;color:var(--accent);letter-spacing:.02em;margin-bottom:auto}
-#cover .hero{border-left:7px solid #f05322;padding:0 0 0 36px;max-width:none}
-#cover h1{font-size:88px;line-height:1.06;letter-spacing:-.045em;margin:0 0 22px}
-#cover .hero p{font-size:28px;line-height:1.5;color:#58585b}
+#cover.active{display:grid;grid-template-columns:1fr 760px}
+#cover .cv-l{padding:72px 40px 64px 84px;display:flex;flex-direction:column}
+#cover .cv-co{display:flex;align-items:center;gap:12px;font-size:20px;font-weight:800;color:var(--ink)}
+#cover .cv-badge{font-size:15px;font-weight:800;color:var(--accent);border:1.5px solid #edb29d;background:#fff5ef;border-radius:999px;padding:4px 12px}
+#cover .hero{margin:auto 0;border-left:7px solid #f05322;padding:0 0 0 34px;max-width:none}
+#cover h1{font-size:86px;line-height:1.08;letter-spacing:-.045em;margin:0 0 20px}
+#cover .hero p{font-size:27px;line-height:1.5;color:#58585b}
 #cover .hero p b{color:var(--ink)}
-#cover dl{margin:auto 0 0;display:grid;grid-template-columns:110px 1fr;gap:8px 14px;font-size:18px;color:#58585b}
+#cover dl{margin:0;display:grid;grid-template-columns:104px 1fr;gap:9px 14px;font-size:17px;color:#58585b;border-top:1px solid var(--line);padding-top:20px}
 #cover dt{font-weight:800;color:var(--ink)}
 #cover dd{margin:0}
-#cover .cv-r{background:#f6f4ef;border-left:1px solid var(--line);display:flex;flex-direction:column;justify-content:center;padding:56px 52px;gap:0}
-#cover .cv-r h4{margin:0 0 18px;font-size:16px;font-weight:800;color:#77777a;letter-spacing:.04em}
-#cover .cv-step{display:grid;grid-template-columns:40px 1fr;gap:14px;align-items:start;position:relative;padding-bottom:26px}
-#cover .cv-step:not(:last-child)::after{content:"";position:absolute;left:19px;top:40px;bottom:2px;border-left:2px dashed #e0b4a3}
-#cover .cv-step .num{width:40px;height:40px;font-size:18px}
-#cover .cv-step b{display:block;font-size:28px;line-height:1.3;color:var(--ink)}
-#cover .cv-step span:not(.num):not(.code){font-size:17px;color:#58585b}
-#cover .cv-step .code{font-size:14px;padding:4px 9px;margin-top:8px}
+#cover .cv-r{background:#f4f2ee;border-left:1px solid var(--line);display:flex;flex-direction:column;justify-content:center;padding:48px 44px}
+#cover .frame{background:#fff;border:1px solid #dcd9d3;border-radius:12px;overflow:hidden;box-shadow:0 18px 40px #2d2d2d1f}
+#cover .frame .bar{height:30px;background:#f1f0ed;border-bottom:1px solid #e3e0da;display:flex;align-items:center;gap:7px;padding:0 12px}
+#cover .frame .bar i{width:10px;height:10px;border-radius:50%;background:#d6d3cd}
+#cover .frame .bar span{margin-left:10px;font-size:12px;color:#8a8c92;font-weight:600}
+#cover .frame img{display:block;width:100%;height:auto}
+#cover .frame .thumb{cursor:zoom-in}
+#cover .cv-cap{margin-top:16px;font-size:16px;color:#58585b;line-height:1.5}
+#cover .cv-cap b{color:var(--ink)}
 #cover .slide-footer{display:none}
 
 </style></head><body>
 <main id="viewport"><div id="stage"><section class="slide section" id="cover">
 <div class="cv-l">
- <p class="cv-co">데이즈온㈜ · 미디어커머스</p>
- <div class="hero"><h1>미디어 SCM<br>운영 리뷰</h1><p>방송 한 건을 기준으로<br><b>PPL, 물류, 회계</b>가 각자의 다음 업무를 이어갑니다.</p></div>
- <dl style="margin-top:56px"><dt>일자</dt><dd>2026년 11월 13일</dd><dt>상태</dt><dd>실무 시범 운영</dd><dt>대표 사례</dt><dd>2026-11-03 09:30 NS 파라다이스</dd></dl>
+ <p class="cv-co">데이즈온㈜ · 미디어커머스 <span class="cv-badge">최종 리뷰</span></p>
+ <div class="hero"><h1>미디어 SCM<br>운영 리뷰</h1><p>2026년 11월 실무 시범 운영<br><b>방송 한 건</b>으로 PPL·물류·회계가 이어집니다.</p></div>
+ <dl><dt>작성일</dt><dd>2026년 11월 13일</dd><dt>기준 데이터</dt><dd>2026년 11월 13일 운영 화면 · 방송 종합 구글시트</dd><dt>범위</dt><dd>방송 입력 · 방송결과 · PPL 등록·배분 (물류·회계는 검증 중)</dd><dt>대표 사례</dt><dd>2026-11-03 09:30 NS 파라다이스</dd></dl>
 </div>
 <div class="cv-r">
- <h4>오늘 따라갈 흐름</h4>
- <div class="cv-step"><span class="num">1</span><div><b>방송 입력</b><span>편성·판매조건·PPL 배분</span><br><span class="code">방송ID · 배분코드</span></div></div>
- <div class="cv-step"><span class="num">2</span><div><b>방송결과</b><span>주문수량과 손익</span><br><span class="code">같은 방송ID</span></div></div>
- <div class="cv-step"><span class="num">3</span><div><b>구글시트</b><span>방송 종합 · PPL 배분현황</span><br><span class="code">계약코드 · 배분코드</span></div></div>
+ <div class="frame"><div class="bar"><i></i><i></i><i></i><span>미디어 SCM · 방송 입력</span></div><div id="cover-shot"></div></div>
+ <p class="cv-cap"><b>방송 입력</b> · 2026-11-03 09:30 NS 파라다이스 실제 화면</p>
 </div>
 </section>
 
@@ -439,6 +439,7 @@ document.querySelectorAll('[data-viewer]').forEach(el=>{
  el.addEventListener('click',e=>{const b=e.target.closest('button[data-view]');if(b){stop();setView(el.dataset.viewer,b.dataset.view)}});
  setView(el.dataset.viewer,el.querySelector('button').dataset.view);
 });
+byId('cover-shot').innerHTML=shot('input');
 byId('sheet-shot').innerHTML=shot('sheet');
 byId('allocation-shot').innerHTML=shot('sheet-ppl');
 byId('logistics').innerHTML=shot('logistics');
