@@ -189,8 +189,44 @@ body{background:#e8e8e8}
 .idtag{display:inline-flex;gap:6px;align-items:center;margin-top:10px;font-size:14px;color:#58585b}
 .idtag .code{font-size:13px;padding:3px 8px}
 
+/* 표지 */
+#cover{padding:0}
+#cover.active{display:grid;grid-template-columns:1fr 560px}
+#cover .cv-l{padding:70px 0 70px 84px;display:flex;flex-direction:column;justify-content:center}
+#cover .cv-co{font-size:20px;font-weight:800;color:var(--accent);letter-spacing:.02em;margin-bottom:auto}
+#cover .hero{border-left:7px solid #f05322;padding:0 0 0 36px;max-width:none}
+#cover h1{font-size:88px;line-height:1.06;letter-spacing:-.045em;margin:0 0 22px}
+#cover .hero p{font-size:28px;line-height:1.5;color:#58585b}
+#cover .hero p b{color:var(--ink)}
+#cover dl{margin:auto 0 0;display:grid;grid-template-columns:110px 1fr;gap:8px 14px;font-size:18px;color:#58585b}
+#cover dt{font-weight:800;color:var(--ink)}
+#cover dd{margin:0}
+#cover .cv-r{background:#f6f4ef;border-left:1px solid var(--line);display:flex;flex-direction:column;justify-content:center;padding:56px 52px;gap:0}
+#cover .cv-r h4{margin:0 0 18px;font-size:16px;font-weight:800;color:#77777a;letter-spacing:.04em}
+#cover .cv-step{display:grid;grid-template-columns:40px 1fr;gap:14px;align-items:start;position:relative;padding-bottom:26px}
+#cover .cv-step:not(:last-child)::after{content:"";position:absolute;left:19px;top:40px;bottom:2px;border-left:2px dashed #e0b4a3}
+#cover .cv-step .num{width:40px;height:40px;font-size:18px}
+#cover .cv-step b{display:block;font-size:28px;line-height:1.3;color:var(--ink)}
+#cover .cv-step span:not(.num):not(.code){font-size:17px;color:#58585b}
+#cover .cv-step .code{font-size:14px;padding:4px 9px;margin-top:8px}
+#cover .slide-footer{display:none}
+
 </style></head><body>
-<main id="viewport"><div id="stage"><section class="slide section" id="why"><header><p class="eyebrow">미디어 SCM 운영 리뷰 · 2026년 11월 13일</p><h2>같은 방송의 정보를 여러 자료에서 다시 찾고 있었습니다</h2><p>방송 일정, 계약, 주문 실적은 담당 팀과 작성 시점이 달랐습니다. 다음 팀은 앞 팀 자료에서 해당 방송을 찾아 수량과 금액을 다시 확인해야 했습니다.</p></header>
+<main id="viewport"><div id="stage"><section class="slide section" id="cover">
+<div class="cv-l">
+ <p class="cv-co">데이즈온㈜ · 미디어커머스</p>
+ <div class="hero"><h1>미디어 SCM<br>운영 리뷰</h1><p>방송 한 건을 기준으로<br><b>PPL, 물류, 회계</b>가 각자의 다음 업무를 이어갑니다.</p></div>
+ <dl style="margin-top:56px"><dt>일자</dt><dd>2026년 11월 13일</dd><dt>상태</dt><dd>실무 시범 운영</dd><dt>대표 사례</dt><dd>2026-11-03 09:30 NS 파라다이스</dd></dl>
+</div>
+<div class="cv-r">
+ <h4>오늘 따라갈 흐름</h4>
+ <div class="cv-step"><span class="num">1</span><div><b>방송 입력</b><span>편성·판매조건·PPL 배분</span><br><span class="code">방송ID · 배분코드</span></div></div>
+ <div class="cv-step"><span class="num">2</span><div><b>방송결과</b><span>주문수량과 손익</span><br><span class="code">같은 방송ID</span></div></div>
+ <div class="cv-step"><span class="num">3</span><div><b>구글시트</b><span>방송 종합 · PPL 배분현황</span><br><span class="code">계약코드 · 배분코드</span></div></div>
+</div>
+</section>
+
+<section class="slide section" id="why"><header><p class="eyebrow">제작 배경</p><h2>같은 방송의 정보를 여러 자료에서 다시 찾고 있었습니다</h2><p>방송 일정, 계약, 주문 실적은 담당 팀과 작성 시점이 달랐습니다. 다음 팀은 앞 팀 자료에서 해당 방송을 찾아 수량과 금액을 다시 확인해야 했습니다.</p></header>
 <div class="issue">
  <div class="before"><div class="bhead"><span class="tagx">지금까지</span>팀마다 다른 파일에서 같은 방송을 다시 찾았습니다</div>
   <div class="teams">
@@ -240,11 +276,11 @@ body{background:#e8e8e8}
 </aside>
 <div>
  <div class="mainroute">
-  <article class="stepcard"><div class="who"><span class="num">1</span>방송팀 · 방송 전</div><h3>방송 입력</h3><p>편성, 판매조건, 목표수량을 등록하고 PPL 계약을 연결해 방송별 비용을 배분합니다.</p><div class="save">방송ID · 배분코드로 저장</div><a class="go" href="#input-detail" data-page="input-detail">5장에서 보기 →</a></article>
+  <article class="stepcard"><div class="who"><span class="num">1</span>방송팀 · 방송 전</div><h3>방송 입력</h3><p>편성, 판매조건, 목표수량을 등록하고 PPL 계약을 연결해 방송별 비용을 배분합니다.</p><div class="save">방송ID · 배분코드로 저장</div><a class="go" href="#input-detail" data-page="input-detail">6장에서 보기 →</a></article>
   <div class="arrow" aria-hidden="true">→</div>
-  <article class="stepcard"><div class="who"><span class="num">2</span>방송팀 · 방송 후</div><h3>방송결과</h3><p>주문수량과 예상 출고를 입력하면 PPL 비용을 포함한 손익이 계산됩니다.</p><div class="save">같은 방송ID에 실적 저장</div><a class="go" href="#result-detail" data-page="result-detail">6장에서 보기 →</a></article>
+  <article class="stepcard"><div class="who"><span class="num">2</span>방송팀 · 방송 후</div><h3>방송결과</h3><p>주문수량과 예상 출고를 입력하면 PPL 비용을 포함한 손익이 계산됩니다.</p><div class="save">같은 방송ID에 실적 저장</div><a class="go" href="#result-detail" data-page="result-detail">7장에서 보기 →</a></article>
   <div class="arrow" aria-hidden="true">→</div>
-  <article class="stepcard"><div class="who"><span class="num">3</span>자동 반영</div><h3>구글시트</h3><p>방송 종합, PPL 배분현황, 결과 원데이터 탭에서 같은 방송을 다시 찾습니다.</p><div class="save">방송ID · 계약코드 · 배분코드로 추적</div><a class="go" href="#sheet-detail" data-page="sheet-detail">7장에서 보기 →</a></article>
+  <article class="stepcard"><div class="who"><span class="num">3</span>자동 반영</div><h3>구글시트</h3><p>방송 종합, PPL 배분현황, 결과 원데이터 탭에서 같은 방송을 다시 찾습니다.</p><div class="save">방송ID · 계약코드 · 배분코드로 추적</div><a class="go" href="#sheet-detail" data-page="sheet-detail">8장에서 보기 →</a></article>
  </div>
  <div class="pplrow"><div class="pplcard"><strong>PPL 등록·배분 · PPL팀</strong>계약 총액과 본방·재방 일정을 미리 등록</div><div class="arrow" aria-hidden="true">→</div><p class="hint">방송 입력 2단계에서 등록된 계약과 송출회차를 골라 이 방송에 배분합니다.</p></div>
  <div class="others"><h4>함께 쓰는 탭</h4><ul>
@@ -410,7 +446,7 @@ byId('accounting').innerHTML=shot('accounting');
 show(0);
 
 const pages=[...document.querySelectorAll('#stage > .slide')];
-const pageNames=['제작 배경 · 다시 찾던 방송 정보','SCM 첫 화면의 탭 구성','전체 SCM 흐름','코드 연결 구조','1 · 방송 입력','2 · 방송결과','3 · 최종 구글시트','11월 3일 방송 시연','운영 검증 결과','물류·회계 후속 검증'];
+const pageNames=['표지','제작 배경 · 다시 찾던 방송 정보','SCM 첫 화면의 탭 구성','전체 SCM 흐름','코드 연결 구조','1 · 방송 입력','2 · 방송결과','3 · 최종 구글시트','11월 3일 방송 시연','운영 검증 결과','물류·회계 후속 검증'];
 const stage=byId('stage'),viewport=byId('viewport'),toc=byId('toc');
 let currentPage=0;
 function fit(){
