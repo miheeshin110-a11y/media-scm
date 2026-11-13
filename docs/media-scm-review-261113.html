@@ -505,6 +505,9 @@ document.querySelectorAll('[data-viewer]').forEach(el=>{
  setView(el.dataset.viewer,el.querySelector('button').dataset.view);
 });
 byId('sheet-shot').innerHTML=shot('sheet');
+let swipeX=null,swipeY=null;
+document.addEventListener('touchstart',e=>{if(e.touches.length!==1)return;swipeX=e.touches[0].clientX;swipeY=e.touches[0].clientY},{passive:true});
+document.addEventListener('touchend',e=>{if(swipeX===null)return;const dx=e.changedTouches[0].clientX-swipeX,dy=e.changedTouches[0].clientY-swipeY;swipeX=null;if(Math.abs(dx)>50&&Math.abs(dx)>Math.abs(dy)*1.5){showPage(currentPage+(dx<0?1:-1))}},{passive:true});
 byId('allocation-shot').innerHTML=shot('sheet-ppl');
 byId('logistics').innerHTML=shot('logistics');
 byId('accounting').innerHTML=shot('accounting');
