@@ -132,8 +132,92 @@ body{background:#e8e8e8}
 #case .visual img{max-height:428px}
 #case .visual.dual img{max-height:198px}
 
+/* 1장: 문제 제기 */
+#why header{margin-bottom:20px}
+#why h2{font-size:46px}
+#why header p:last-child{font-size:21px;max-width:1240px}
+.issue{display:grid;grid-template-columns:1fr 400px;gap:22px}
+.bhead{display:flex;align-items:center;gap:10px;font-size:18px;font-weight:800;color:var(--ink);margin-bottom:12px}
+.tagx{font-size:13px;font-weight:800;letter-spacing:.04em;padding:4px 10px;border-radius:999px;background:#ece9e4;color:#58585b}
+.tagx.on{background:var(--accent);color:#fff}
+.before{background:#f6f4ef;border-radius:16px;padding:18px 20px}
+.teams{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.team{background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px 16px;display:flex;flex-direction:column;gap:9px}
+.tchip{align-self:flex-start;font-size:14px;font-weight:800;color:var(--ink);border-bottom:2px solid var(--ink);padding-bottom:2px}
+.files{display:flex;gap:8px;flex-wrap:wrap}
+.file{position:relative;font-size:15px;font-weight:700;color:#3a3d44;background:#fff;border:1.5px solid #cfccc6;border-radius:4px 10px 4px 4px;padding:7px 10px 7px 26px}
+.file::before{content:"";position:absolute;left:9px;top:50%;width:10px;height:13px;margin-top:-7px;border:1.5px solid #9c988f;border-radius:1px 4px 1px 1px}
+.team p{font-size:16.5px;line-height:1.55}
+.pain{margin-top:auto;align-self:flex-start;font-size:14px;font-weight:800;color:#b42318;background:#fdecea;border-radius:999px;padding:4px 11px}
+.pain::before{content:"↺ ";font-weight:800}
+.after{border:2px solid var(--accent);border-radius:16px;padding:18px 20px;background:#fff}
+.chain{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:0}
+.chain li{display:grid;grid-template-columns:118px 1fr;align-items:center;gap:12px;position:relative;padding:11px 0}
+.chain li+li::before{content:"";position:absolute;left:58px;top:-6px;height:12px;border-left:2px solid #edb29d}
+.code{display:inline-flex;align-items:center;justify-content:center;font-weight:800;font-size:15px;letter-spacing:.01em;background:var(--ink);color:#fff;border-radius:8px;padding:7px 10px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.code.lt{background:#fce9e1;color:var(--accent)}
+.chain li>span:not(.code){font-size:17px;color:#3a3d44;line-height:1.4}
+.after .note{margin-top:8px;font-size:15px;color:#58585b;border-top:1px solid var(--line);padding-top:10px}
+.principles{margin-top:30px}
+.principles .eyebrow{font-size:17px;margin-bottom:12px}
+.pgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.pgrid article{display:grid;grid-template-columns:34px 1fr;gap:12px;border-top:3px solid var(--accent);padding:14px 4px 0}
+.pgrid h3{font-size:23px;margin:2px 0 6px}
+.pgrid p{font-size:17px;line-height:1.55}
+
+/* 4장: 코드 연결 */
+#codes header{margin-bottom:22px}
+.codeflow{display:grid;grid-template-columns:1fr 34px 1fr 34px 1fr 34px 1fr 34px 1fr;align-items:stretch}
+.codeflow .ar{display:flex;align-items:center;justify-content:center;color:var(--accent);font-size:24px;font-weight:800}
+.cnode{border:1px solid var(--line);border-radius:14px;padding:14px 14px 12px;background:#fff;display:flex;flex-direction:column;gap:8px}
+.cnode .lbl{font-size:14px;font-weight:800;color:#77777a}
+.cnode .code{align-self:flex-start;font-size:16px}
+.cnode p{font-size:16px;line-height:1.5}
+.cnode p b{color:var(--ink)}
+.cnode .who{margin-top:auto;font-size:13px;font-weight:700;color:#8a8c92}
+.cnode.key{border:2px solid var(--accent);background:#fff8f4}
+.codeflow2{display:grid;grid-template-columns:1fr 34px 4fr;gap:0;margin-top:16px;align-items:stretch}
+.upnote{grid-column:1;display:flex;align-items:center;gap:6px;font-size:14px;font-weight:800;color:var(--accent);margin:-4px 0 6px 6px}
+.cnode.tax{border-style:dashed;border-color:#c9a594;background:#fffaf7}
+.acc{border-radius:14px;background:#f6f4ef;padding:18px 24px;display:grid;grid-template-columns:auto 1fr;gap:14px;align-items:center}
+.acc h4{margin:0 0 4px;font-size:22px}
+.acc p{font-size:18px;line-height:1.55}
+.rules{margin-top:18px;display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.rules div{border-top:1px solid var(--line);padding-top:10px;font-size:16px;color:#58585b;line-height:1.45}
+.rules .code{font-size:14px;padding:4px 9px;margin-bottom:6px}
+.rules b{color:var(--ink)}
+.idtag{display:inline-flex;gap:6px;align-items:center;margin-top:10px;font-size:14px;color:#58585b}
+.idtag .code{font-size:13px;padding:3px 8px}
+
 </style></head><body>
-<main id="viewport"><div id="stage"><section class="slide section" id="menus"><header><p class="eyebrow">미디어 SCM 운영 리뷰 · 2026년 11월 13일</p><h1>SCM 첫 화면의 탭 구성</h1><p>방송팀이 방송 입력과 방송결과 두 탭에 기록하면, 같은 방송이 구글시트까지 자동으로 이어집니다.</p></header>
+<main id="viewport"><div id="stage"><section class="slide section" id="why"><header><p class="eyebrow">미디어 SCM 운영 리뷰 · 2026년 11월 13일</p><h2>같은 방송의 정보를 여러 자료에서 다시 찾고 있었습니다</h2><p>방송 일정, 계약, 주문 실적은 담당 팀과 작성 시점이 달랐습니다. 다음 팀은 앞 팀 자료에서 해당 방송을 찾아 수량과 금액을 다시 확인해야 했습니다.</p></header>
+<div class="issue">
+ <div class="before"><div class="bhead"><span class="tagx">지금까지</span>팀마다 다른 파일에서 같은 방송을 다시 찾았습니다</div>
+  <div class="teams">
+   <article class="team"><span class="tchip">방송팀 · PPL팀</span><div class="files"><span class="file">PPL 파일</span><span class="file">비용 캘린더</span></div><p>한 PPL 계약을 여러 방송에 나눠 쓰면 계약 총액과 방송별 비용을 따로 추적해야 합니다. 대행료가 있으면 배분 원금액과 손익에 넣을 비용도 구분해야 합니다.</p><span class="pain">계약 ↔ 방송 다시 맞추기</span></article>
+   <article class="team"><span class="tchip">물류팀</span><div class="files"><span class="file">방송 준비 요청</span><span class="file">물류 작업파일</span></div><p>판매 구성과 목표수량을 보고 본품과 사은품이 각각 얼마나 필요한지 작업파일에서 다시 계산했습니다.</p><span class="pain">구성 → 품목 수량 재계산</span></article>
+   <article class="team"><span class="tchip">회계팀</span><div class="files"><span class="file">세금계산서 발행내역</span><span class="file">월별 PPL 작업파일</span></div><p>발행월과 귀속월이 다르면 거래처·품목을 단서로 PPL 파일과 방송 일정을 찾아 대조했습니다. 본방·재방이 다른 달이면 배분 내역도 확인합니다.</p><span class="pain">발행월 ↔ 귀속월 대조</span></article>
+  </div>
+ </div>
+ <div class="after"><div class="bhead"><span class="tagx on">SCM</span>코드로 이어서 찾습니다</div>
+  <ol class="chain">
+   <li><span class="code">방송ID</span><span>편성·실적·비용을 한 방송으로 묶음</span></li>
+   <li><span class="code">계약코드</span><span>PPL 계약 총액과 송출회차</span></li>
+   <li><span class="code">배분코드</span><span>방송별 배분 금액과 귀속월</span></li>
+   <li><span class="code">승인번호</span><span>세금계산서를 계약에 매칭</span></li>
+  </ol>
+  <p class="note">이름이나 날짜로 다시 찾지 않고, 저장할 때 붙은 코드로 다음 팀이 이어받습니다.</p>
+ </div>
+</div>
+<div class="principles"><p class="eyebrow">설계 기준 · 각 팀이 화면을 열었을 때 다음에 할 일이 보여야 했습니다</p>
+ <div class="pgrid">
+  <article><span class="num">1</span><div><h3>방송 한 건을 계속 이어서 보기</h3><p>편성, 실적, 비용은 방송ID로 연결하고, PPL 배분은 계약코드와 배분코드로 원계약까지 찾습니다.</p></div></article>
+  <article><span class="num">2</span><div><h3>금액의 기준을 화면에 드러내기</h3><p>계약 총액, 방송별 배분 공급가액, 실제 손익에 반영할 비용을 각각 보여줍니다.</p></div></article>
+  <article><span class="num">3</span><div><h3>확인이 필요한 건을 남기기</h3><p>계산서가 대조되지 않았거나 구성수량이 확인되지 않으면 다음 담당자가 확인할 항목으로 표시합니다.</p></div></article>
+ </div>
+</div></section>
+
+<section class="slide section" id="menus"><header><p class="eyebrow">SCM 구성</p><h1>SCM 첫 화면의 탭 구성</h1><p>방송팀이 방송 입력과 방송결과 두 탭에 기록하면, 같은 방송이 구글시트까지 자동으로 이어집니다.</p></header>
 <div class="s1">
 <aside class="sidebar" aria-label="SCM 메뉴 구성">
  <div class="brand"><span class="logo" aria-hidden="true"></span><div><b>미디어 SCM</b><span>방송·PPL 통합관리</span></div></div>
@@ -156,11 +240,11 @@ body{background:#e8e8e8}
 </aside>
 <div>
  <div class="mainroute">
-  <article class="stepcard"><div class="who"><span class="num">1</span>방송팀 · 방송 전</div><h3>방송 입력</h3><p>편성, 판매조건, 목표수량을 등록하고 PPL 계약을 연결해 방송별 비용을 배분합니다.</p><div class="save">방송ID로 저장</div><a class="go" href="#input-detail" data-page="input-detail">3장에서 보기 →</a></article>
+  <article class="stepcard"><div class="who"><span class="num">1</span>방송팀 · 방송 전</div><h3>방송 입력</h3><p>편성, 판매조건, 목표수량을 등록하고 PPL 계약을 연결해 방송별 비용을 배분합니다.</p><div class="save">방송ID · 배분코드로 저장</div><a class="go" href="#input-detail" data-page="input-detail">5장에서 보기 →</a></article>
   <div class="arrow" aria-hidden="true">→</div>
-  <article class="stepcard"><div class="who"><span class="num">2</span>방송팀 · 방송 후</div><h3>방송결과</h3><p>주문수량과 예상 출고를 입력하면 PPL 비용을 포함한 손익이 계산됩니다.</p><div class="save">같은 방송ID에 실적 저장</div><a class="go" href="#result-detail" data-page="result-detail">4장에서 보기 →</a></article>
+  <article class="stepcard"><div class="who"><span class="num">2</span>방송팀 · 방송 후</div><h3>방송결과</h3><p>주문수량과 예상 출고를 입력하면 PPL 비용을 포함한 손익이 계산됩니다.</p><div class="save">같은 방송ID에 실적 저장</div><a class="go" href="#result-detail" data-page="result-detail">6장에서 보기 →</a></article>
   <div class="arrow" aria-hidden="true">→</div>
-  <article class="stepcard"><div class="who"><span class="num">3</span>자동 반영</div><h3>구글시트</h3><p>방송 종합, PPL 배분현황, 결과 원데이터 탭에서 같은 방송을 다시 찾습니다.</p><div class="save">방송ID · 계약ID로 추적</div><a class="go" href="#sheet-detail" data-page="sheet-detail">5장에서 보기 →</a></article>
+  <article class="stepcard"><div class="who"><span class="num">3</span>자동 반영</div><h3>구글시트</h3><p>방송 종합, PPL 배분현황, 결과 원데이터 탭에서 같은 방송을 다시 찾습니다.</p><div class="save">방송ID · 계약코드 · 배분코드로 추적</div><a class="go" href="#sheet-detail" data-page="sheet-detail">7장에서 보기 →</a></article>
  </div>
  <div class="pplrow"><div class="pplcard"><strong>PPL 등록·배분 · PPL팀</strong>계약 총액과 본방·재방 일정을 미리 등록</div><div class="arrow" aria-hidden="true">→</div><p class="hint">방송 입력 2단계에서 등록된 계약과 송출회차를 골라 이 방송에 배분합니다.</p></div>
  <div class="others"><h4>함께 쓰는 탭</h4><ul>
@@ -172,45 +256,69 @@ body{background:#e8e8e8}
  </ul></div>
 </div>
 </div></section>
-<section class="slide section" id="flow"><ol class="route" aria-label="발표 흐름"><li class="on"><i>·</i>전체 흐름</li><li><i>1</i>방송 입력</li><li><i>2</i>방송결과</li><li><i>3</i>구글시트</li></ol><header><p class="eyebrow">전체 흐름</p><h2>방송 한 건이 팀별 다음 업무의 기준입니다</h2><p>방송ID 하나로 입력, 배분, 실적, 시트 기록이 이어집니다. PPL 계약은 PPL팀이 병행해서 등록합니다.</p></header>
+<section class="slide section" id="flow"><ol class="route" aria-label="발표 흐름"><li class="on"><i>·</i>전체 흐름</li><li><i>#</i>코드</li><li><i>1</i>방송 입력</li><li><i>2</i>방송결과</li><li><i>3</i>구글시트</li></ol><header><p class="eyebrow">전체 흐름</p><h2>방송 한 건이 팀별 다음 업무의 기준입니다</h2><p>방송ID 하나로 입력, 배분, 실적, 시트 기록이 이어집니다. PPL 계약은 PPL팀이 병행해서 등록합니다.</p></header>
 <div class="surface">
 <div class="map">
 <div class="lane" style="--tone:#fff3e3;--edge:#efd6b5"><small class="tagnum"><span class="num">1</span>방송팀</small><h3><a href="#case" data-step="0">방송 입력</a></h3><div>편성·상품·목표수량</div><div>방송ID로 저장</div></div>
-<div class="lane" style="--tone:#ebf5ed;--edge:#cbe2d0"><small>PPL팀 · 병행 등록</small><h3><a href="#case" data-step="1">계약 등록</a></h3><div>거래처·계약금액·송출회차</div><div>계약ID로 저장</div></div>
-<div class="lane" style="--tone:#edf3ff;--edge:#cfddf6"><small class="tagnum"><span class="num ghost">1</span>방송 입력 2단계</small><h3><a href="#case" data-step="2">PPL 연결·배분</a></h3><div>계약과 송출회차 선택</div><div>방송별 비용·귀속월 저장</div></div>
+<div class="lane" style="--tone:#ebf5ed;--edge:#cbe2d0"><small>PPL팀 · 병행 등록</small><h3><a href="#case" data-step="1">계약 등록</a></h3><div>거래처·계약금액·송출회차</div><div>계약코드로 저장</div></div>
+<div class="lane" style="--tone:#edf3ff;--edge:#cfddf6"><small class="tagnum"><span class="num ghost">1</span>방송 입력 2단계</small><h3><a href="#case" data-step="2">PPL 연결·배분</a></h3><div>계약과 송출회차 선택</div><div>배분코드·귀속월 저장</div></div>
 <div class="lane" style="--tone:#f1eef9;--edge:#e0d7ef"><small class="tagnum"><span class="num">2</span>방송팀</small><h3><a href="#case" data-step="4">방송결과</a></h3><div>주문수량·예상출고 입력</div><div>PPL 비용과 손익 계산</div></div>
-<div class="lane" style="--tone:#faedef;--edge:#efd4db"><small class="tagnum"><span class="num">3</span>자동 반영</small><h3><a href="#case" data-step="5">구글시트</a></h3><div>방송 종합·PPL 배분현황</div><div>방송ID·계약ID로 추적</div></div>
+<div class="lane" style="--tone:#faedef;--edge:#efd4db"><small class="tagnum"><span class="num">3</span>자동 반영</small><h3><a href="#case" data-step="5">구글시트</a></h3><div>방송 종합·PPL 배분현황</div><div>방송ID·코드로 추적</div></div>
 </div>
 <div class="branches"><div class="branch"><strong>물류팀 · 검증 진행 중</strong>방송 판매 구성·목표수량 → 본품·사은품별 준비수량·예상출고</div><div class="branch"><strong>회계팀 · 검증 진행 중</strong>확정 계산서 + 방송별 배분 → 발행월·귀속월 대조 → 월마감</div></div>
 <p class="parallel">PPL팀은 계산서 검토에서 거래처별 계산서를 계약과 대조합니다. 확정한 계산서는 회계 검증에 쓰입니다.</p>
 </div></section>
-<section class="slide section" id="input-detail"><ol class="route" aria-label="발표 흐름"><li class="done"><i>·</i>전체 흐름</li><li class="on"><i>1</i>방송 입력</li><li><i>2</i>방송결과</li><li><i>3</i>구글시트</li></ol><header><p class="eyebrow">1 · 방송팀 · 방송 입력</p><h2>편성과 판매 계획을 등록하고 PPL 비용을 배분합니다</h2></header>
+<section class="slide section" id="codes"><ol class="route" aria-label="발표 흐름"><li class="done"><i>·</i>전체 흐름</li><li class="on"><i>#</i>코드</li><li><i>1</i>방송 입력</li><li><i>2</i>방송결과</li><li><i>3</i>구글시트</li></ol><header><p class="eyebrow">코드 연결</p><h2>배분도, 계산서 매칭도 모두 코드로 움직입니다</h2><p>방송과 PPL은 저장할 때 코드가 붙습니다. 아래는 11월 3일 NS 파라다이스 건에 실제로 붙은 코드입니다.</p></header>
+<div class="codeflow">
+ <div class="cnode"><span class="lbl">PPL 계약 · PPL팀 등록</span><span class="code">PPL-2026-0016</span><p>유안콘텐츠미디어 · JTBC 건강노트<br>공급가액 <b>36,000,000원</b></p><span class="who">계약코드</span></div>
+ <div class="ar" aria-hidden="true">→</div>
+ <div class="cnode key"><span class="lbl">방송별 배분</span><span class="code">PPL-2026-0016-000003</span><p>이 방송에 <b>25,200,000원</b> · 귀속 2026-11<br>잔액 10,800,000원은 다음 배분에 새 코드로</p><span class="who">배분코드 = 계약코드 + 배분번호</span></div>
+ <div class="ar" aria-hidden="true">→</div>
+ <div class="cnode"><span class="lbl">방송 입력</span><span class="code">방송ID</span><p>2026-11-03 09:30<br>NS · 파라다이스</p><span class="who">편성·판매조건·배분을 이 ID로 저장</span></div>
+ <div class="ar" aria-hidden="true">→</div>
+ <div class="cnode"><span class="lbl">방송결과 · 같은 방송ID</span><span class="code lt">방송ID</span><p>주문 <b>666세트</b><br>PPL 반영 25,200,000원<br>예상 이익 <b>17,549,200원</b></p></div>
+ <div class="ar" aria-hidden="true">→</div>
+ <div class="cnode"><span class="lbl">구글시트</span><span class="code lt">계약코드 · 배분코드</span><p>방송 종합 7행<br>PPL 배분현황 7행<br>코드 열로 원계약까지 추적</p></div>
+</div>
+<div class="codeflow2">
+ <div><p class="upnote">↑ 승인번호로 계약코드에 매칭</p><div class="cnode tax"><span class="lbl">세금계산서 · PPL팀 검토</span><span class="code">승인번호</span><p>거래처 기준으로 후보 계약을 띄워 계약코드에 연결합니다. 같은 승인번호는 다시 올라가지 않습니다.</p></div></div>
+ <div></div>
+ <div class="acc" style="margin-top:22px"><span class="code">발행월 ↔ 귀속월</span><div><h4>회계 대조도 코드로 맞춥니다</h4><p>계산서 발행월은 승인번호에서, 비용 귀속월은 배분코드에서 가져옵니다. 본방·재방이 다른 달에 걸쳐도 배분코드별로 나눠 대조합니다.</p></div></div>
+</div>
+<div class="rules">
+ <div><span class="code">방송ID</span><br>방송 입력에서 저장할 때 생성. 방송결과와 시트 행이 같은 ID를 씁니다.</div>
+ <div><span class="code">계약코드</span><br>PPL 등록 때 부여. <b>PPL-연도-순번</b> 형식입니다.</div>
+ <div><span class="code">배분코드</span><br>방송에 나눌 때마다 부여. 해제된 번호는 다시 쓰지 않습니다.</div>
+ <div><span class="code">승인번호</span><br>세금계산서 식별과 중복 업로드 판별. 합산 발행은 관련 계약을 함께 연결합니다.</div>
+</div></section>
+
+<section class="slide section" id="input-detail"><ol class="route" aria-label="발표 흐름"><li class="done"><i>·</i>전체 흐름</li><li class="done"><i>#</i>코드</li><li class="on"><i>1</i>방송 입력</li><li><i>2</i>방송결과</li><li><i>3</i>구글시트</li></ol><header><p class="eyebrow">1 · 방송팀 · 방송 입력</p><h2>편성과 판매 계획을 등록하고 PPL 비용을 배분합니다</h2></header>
 <div class="detail-grid"><div><div class="viewtabs" data-viewer="input" role="group" aria-label="방송 입력 화면 선택"><button data-view="input" aria-pressed="true">방송 정보</button><button data-view="ppl" aria-pressed="false">PPL 연결·배분</button><button data-view="registry" aria-pressed="false">PPL팀이 등록한 계약</button></div><div class="shotbox" id="input-shot"></div></div>
-<div class="steps-panel"><h3>방송 입력 6단계</h3><p class="case">2026-11-03 09:30 · NS · 파라다이스</p><ol id="input-steps">
+<div class="steps-panel"><h3>방송 입력 6단계</h3><p class="case">2026-11-03 09:30 · NS · 파라다이스 · <span class="code" style="font-size:12px;padding:2px 7px">방송ID</span></p><ol id="input-steps">
 <li data-s="input"><i>1</i><div><b>방송 정보</b>09:30 편성, 채널·아이템·담당자</div></li>
 <li data-s="ppl registry"><i>2</i><div><b>PPL 연결</b>계약·송출회차 선택 및 배분</div></li>
 <li><i>3</i><div><b>판매조건</b>메인·서브 구성, 판매가·수수료</div></li>
 <li><i>4</i><div><b>목표·수량 · 방송비용</b>목표금액과 계획수량, 비용 기준</div></li>
 <li><i>5</i><div><b>입력 현황</b>미입력 항목 확인 후 저장</div></li>
 </ol><div class="keynums" id="input-keys"></div></div></div></section>
-<section class="slide section" id="result-detail"><ol class="route" aria-label="발표 흐름"><li class="done"><i>·</i>전체 흐름</li><li class="done"><i>1</i>방송 입력</li><li class="on"><i>2</i>방송결과</li><li><i>3</i>구글시트</li></ol><header><p class="eyebrow">2 · 방송팀 · 방송결과</p><h2>방송이 끝나면 주문수량을 넣고 손익을 확인합니다</h2></header>
+<section class="slide section" id="result-detail"><ol class="route" aria-label="발표 흐름"><li class="done"><i>·</i>전체 흐름</li><li class="done"><i>#</i>코드</li><li class="done"><i>1</i>방송 입력</li><li class="on"><i>2</i>방송결과</li><li><i>3</i>구글시트</li></ol><header><p class="eyebrow">2 · 방송팀 · 방송결과</p><h2>방송이 끝나면 주문수량을 넣고 손익을 확인합니다</h2></header>
 <div class="detail-grid"><div><div class="viewtabs" data-viewer="result" role="group" aria-label="방송결과 화면 선택"><button data-view="orders" aria-pressed="true">주문 실적</button><button data-view="profit" aria-pressed="false">손익·검토</button></div><div class="shotbox" id="result-shot"></div></div>
-<div class="steps-panel"><h3>방송결과 4단계</h3><p class="case">같은 방송ID · 11월 3일 10:30 종료</p><ol id="result-steps">
+<div class="steps-panel"><h3>방송결과 4단계</h3><p class="case"><span class="code" style="font-size:12px;padding:2px 7px">방송ID</span> 같은 방송에 실적 저장 · 10:30 종료</p><ol id="result-steps">
 <li data-s="orders"><i>1</i><div><b>주문 실적</b>메인 613세트 · 서브 53세트</div></li>
 <li><i>2</i><div><b>예상 출고</b>예상출고수량과 배송건수 확인</div></li>
 <li><i>3</i><div><b>사은품</b>지급수량과 비용 확인</div></li>
 <li data-s="profit"><i>4</i><div><b>손익·검토</b>PPL 비용이 포함된 예상 이익</div></li>
 </ol><div class="keynums" id="result-keys"></div></div></div></section>
-<section class="slide section" id="sheet-detail"><ol class="route" aria-label="발표 흐름"><li class="done"><i>·</i>전체 흐름</li><li class="done"><i>1</i>방송 입력</li><li class="done"><i>2</i>방송결과</li><li class="on"><i>3</i>구글시트</li></ol><header><p class="eyebrow">3 · 구글스프레드시트 · 저장 결과</p><h2>저장한 방송이 구글시트의 같은 행으로 남습니다</h2></header>
+<section class="slide section" id="sheet-detail"><ol class="route" aria-label="발표 흐름"><li class="done"><i>·</i>전체 흐름</li><li class="done"><i>#</i>코드</li><li class="done"><i>1</i>방송 입력</li><li class="done"><i>2</i>방송결과</li><li class="on"><i>3</i>구글시트</li></ol><header><p class="eyebrow">3 · 구글스프레드시트 · 저장 결과</p><h2>저장한 방송이 구글시트의 같은 행으로 남습니다</h2></header>
 <div class="mapband">
  <div><span class="from"><b>방송 입력</b>편성·목표·비용</span><span class="ar">→</span><span class="to">방송 종합</span></div>
- <div><span class="from"><b>PPL 연결·배분</b>계약·배분코드</span><span class="ar">→</span><span class="to">PPL 계약현황 · PPL 배분현황</span></div>
+ <div><span class="from"><b>PPL 연결·배분</b>계약코드·배분코드</span><span class="ar">→</span><span class="to">PPL 계약현황 · PPL 배분현황</span></div>
  <div><span class="from"><b>방송결과</b>주문·손익</span><span class="ar">→</span><span class="to">SCM_방송결과 · SCM_결과비용</span></div>
 </div>
 <div class="sheetgrid">
  <div><p class="imglabel">방송 종합 <span>7행 · 11월 3일 NS</span></p><div class="sheetimg"><div id="sheet-shot"></div><span class="rowmark" style="top:89%;height:11%"></span></div></div>
  <div class="rowcard"><h3>2026-11-03 09:30 NS 파라다이스</h3><p>SCM 화면에 저장한 값과 시트의 같은 행을 대조했습니다.</p>
-  <dl><div><dt>배분 공급가액</dt><dd>25,200,000</dd></div><div><dt>배분 부가세</dt><dd>2,520,000</dd></div><div><dt>배분 합계</dt><dd>27,720,000</dd></div><div><dt>계약번호</dt><dd style="font-size:17px">PPL-2026-0016</dd></div><div><dt>주문수량</dt><dd>666세트</dd></div><div><dt>예상 이익금</dt><dd>17,549,200</dd></div></dl></div>
+  <dl><div><dt>배분 공급가액</dt><dd>25,200,000</dd></div><div><dt>배분 부가세</dt><dd>2,520,000</dd></div><div><dt>배분 합계</dt><dd>27,720,000</dd></div><div><dt>계약코드</dt><dd style="font-size:17px">PPL-2026-0016</dd></div><div><dt>주문수량</dt><dd>666세트</dd></div><div><dt>예상 이익금</dt><dd>17,549,200</dd></div></dl></div>
 </div>
 <div class="sheetwide"><p class="imglabel">PPL 배분현황 <span>7행 · 배분코드 PPL-2026-0016-000003</span></p><div class="sheetimg"><div id="allocation-shot"></div><span class="rowmark" style="top:70%;height:19%"></span></div></div>
 </section>
@@ -229,18 +337,7 @@ body{background:#e8e8e8}
 <section class="slide section" id="next"><header><h2>물류와 회계의 다음 검증</h2></header><div class="two">
 <article class="surface next"><p class="eyebrow">물류팀 · 진행 중</p><h3>품목별 준비수량을 물류 작업파일과 대조</h3><p>판매 구성의 세트당 본품·사은품 수량을 적용한 뒤, 방송별 준비·예상출고 수량과 전달 엑셀이 일치하는지 확인합니다.</p><div id="logistics"></div></article>
 <article class="surface next"><p class="eyebrow">회계팀 · 진행 중</p><h3>계산서 연결을 확인하고 월마감 자료 대조</h3><p>계산서 발행월과 방송별 비용 귀속월을 검증합니다. 연결이 갖춰지면 대행비 제외 광고비와 월마감 엑셀을 기존 회계 자료와 대조합니다.</p><div id="accounting"></div></article>
-</div></section>
-<section class="slide section" id="why">
-<header><p class="eyebrow">부록 · 제작 배경</p><h2>같은 방송의 정보를 여러 자료에서 다시 찾고 있었습니다</h2><p>방송 일정과 계약, 주문 실적은 담당하는 팀과 작성 시점이 달랐습니다. 다음 팀이 업무를 시작하려면 앞 팀 자료에서 해당 방송을 찾고, 필요한 수량과 금액을 다시 확인해야 했습니다.</p></header>
-<div class="reasons">
-<article><h3>방송팀 · PPL팀</h3><p>한 PPL 계약을 여러 방송에 나눠 쓰면 계약 총액과 각 방송에 반영할 비용을 함께 추적해야 합니다. 대행료가 있는 계약은 배분할 원금액과 손익에 들어갈 비용도 구분해야 합니다.</p></article>
-<article><h3>물류팀</h3><p>방송 준비 요청을 받으면 판매 구성과 목표수량을 보고 본품과 사은품이 각각 얼마나 필요한지 작업파일에서 계산했습니다.</p></article>
-<article><h3>회계팀</h3><p>계산서 발행월과 방송 비용 귀속월이 다르면 거래처·품목을 단서로 PPL 파일과 방송 일정을 찾아 대조했습니다. 본방과 재방이 다른 월에 걸치면 배분 내역도 확인해야 했습니다.</p></article>
-</div>
-<div class="priority"><p class="eyebrow">가장 신경 쓴 설계 기준</p><h3>각 팀이 화면을 열었을 때 다음에 할 일이 보여야 했습니다</h3><p>방송팀이 편성과 판매 구성을 입력하면 PPL팀이 등록한 계약을 불러와 연결할 수 있게 했습니다. 거래처는 계약에서 자동으로 표시하고, 방송별로 배분한 비용은 손익과 구글시트에서 다시 확인할 수 있게 했습니다. 물류와 회계도 같은 방송의 구성·수량과 배분 내역을 받아 각자의 검증을 이어가는 구조로 잡았습니다.</p>
-<ul><li><strong>방송 한 건을 계속 이어서 보기</strong> · 편성, 실적, 비용은 방송ID로 연결하고, PPL 배분은 계약ID와 배분코드로 원계약까지 찾을 수 있게 했습니다.</li><li><strong>금액의 기준을 화면에 드러내기</strong> · 계약 총액, 방송별 배분 공급가액, 실제 손익에 반영할 비용을 확인할 수 있게 했습니다.</li><li><strong>확인이 필요한 건을 남기기</strong> · 계산서가 대조되지 않았거나 구성수량이 확인되지 않은 경우, 다음 담당자가 확인할 항목으로 표시하는 흐름을 두었습니다.</li></ul>
-</div>
-</section></div></main>
+</div></section></div></main>
 <nav class="toolbar" aria-label="슬라이드 이동"><button id="page-prev" aria-label="이전 슬라이드">←</button><output id="page-count" aria-live="polite"></output><button id="page-next" aria-label="다음 슬라이드">→</button><button id="toc-open">목차</button><button id="full">전체 화면</button></nav>
 <dialog id="toc" aria-label="슬라이드 목차"><h3>발표 목차</h3><div id="toc-list"></div><form method="dialog"><button class="close">닫기</button></form></dialog>
 <dialog id="zoom" aria-label="캡처 확대"><img alt=""><form method="dialog"><button class="close">닫기</button></form></dialog>
@@ -290,8 +387,8 @@ document.addEventListener('click',event=>{
 });
 const viewKeys={
  input:[['배분 대상 방송','2026-11-03 09:30 NS 파라다이스'],['판매 구성','메인 · 서브 2개 구성']],
- ppl:[['이 방송 배분 공급가액','25,200,000원'],['비용 귀속월','2026년 11월'],['계약 잔액','10,800,000원']],
- registry:[['PPL-2026-0016 · 유안콘텐츠미디어','JTBC 건강노트'],['계약 공급가액','36,000,000원']],
+ ppl:[['배분코드','PPL-2026-0016-000003'],['이 방송 배분 공급가액','25,200,000원'],['비용 귀속월 · 계약 잔액','2026-11 · 10,800,000원']],
+ registry:[['계약코드','PPL-2026-0016'],['유안콘텐츠미디어 · JTBC 건강노트','36,000,000원']],
  orders:[['주문수량 합계','666세트'],['보고용 주문금액 · VAT 제외','146,828,181원']],
  profit:[['PPL 방송 반영비용','25,200,000원'],['예상 공급매출','58,085,000원'],['예상 이익금','17,549,200원']]
 };
@@ -313,7 +410,7 @@ byId('accounting').innerHTML=shot('accounting');
 show(0);
 
 const pages=[...document.querySelectorAll('#stage > .slide')];
-const pageNames=['SCM 첫 화면의 탭 구성','전체 SCM 흐름','1 · 방송 입력','2 · 방송결과','3 · 최종 구글시트','11월 3일 방송 시연','운영 검증 결과','물류·회계 후속 검증','부록 · 제작 배경과 설계 기준'];
+const pageNames=['제작 배경 · 다시 찾던 방송 정보','SCM 첫 화면의 탭 구성','전체 SCM 흐름','코드 연결 구조','1 · 방송 입력','2 · 방송결과','3 · 최종 구글시트','11월 3일 방송 시연','운영 검증 결과','물류·회계 후속 검증'];
 const stage=byId('stage'),viewport=byId('viewport'),toc=byId('toc');
 let currentPage=0;
 function fit(){
